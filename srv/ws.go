@@ -255,12 +255,23 @@ func (s *Server) handleStartGame(room *Room) {
 	hiragana := toHiragana(word)
 	nextChar := getLastChar(hiragana)
 
+	room.mu.Lock()
+	currentTurn := ""
+	if len(room.TurnOrder) > 0 {
+		currentTurn = room.TurnOrder[room.TurnIndex]
+	}
+	turnOrder := make([]string, len(room.TurnOrder))
+	copy(turnOrder, room.TurnOrder)
+	room.mu.Unlock()
+
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "game_started",
 		"currentWord": word,
 		"nextChar":    string(nextChar),
 		"history":     room.History,
 		"timeLimit":   room.Settings.TimeLimit,
+		"currentTurn": currentTurn,
+		"turnOrder":   turnOrder,
 	}))
 }
 
@@ -288,6 +299,13 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 	hiragana := toHiragana(word)
 	nextChar := getLastChar(hiragana)
 
+	room.mu.Lock()
+	nextTurn := ""
+	if len(room.TurnOrder) > 0 {
+		nextTurn = room.TurnOrder[room.TurnIndex]
+	}
+	room.mu.Unlock()
+
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "word_accepted",
 		"word":        word,
@@ -296,5 +314,6 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 		"currentWord": word,
 		"scores":      room.GetScores(),
 		"history":     room.History,
+		"currentTurn": nextTurn,
 	}))
 }

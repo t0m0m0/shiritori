@@ -44,6 +44,10 @@ type Room struct {
 	Status      string        `json:"status"` // "waiting", "playing", "finished"
 	UsedWords   map[string]bool
 
+	// Turn management
+	TurnOrder   []string // player names in order
+	TurnIndex   int      // index into TurnOrder for current turn
+
 	timerCancel chan struct{}
 	timerLeft   int
 }
@@ -129,6 +133,7 @@ func (r *Room) AddPlayer(p *Player) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Players[p.Name] = p
+	r.TurnOrder = append(r.TurnOrder, p.Name)
 }
 
 // RemovePlayer removes a player from the room and returns the remaining count.
@@ -138,6 +143,19 @@ func (r *Room) RemovePlayer(name string) int {
 	if p, ok := r.Players[name]; ok {
 		close(p.Send)
 		delete(r.Players, name)
+	}
+	// Remove from turn order
+	for i, n := range r.TurnOrder {
+		if n == name {
+			r.TurnOrder = append(r.TurnOrder[:i], r.TurnOrder[i+1:]...)
+			// Adjust TurnIndex if needed
+			if len(r.TurnOrder) > 0 {
+				if r.TurnIndex >= len(r.TurnOrder) {
+					r.TurnIndex = 0
+				}
+			}
+			break
+		}
 	}
 	return len(r.Players)
 }
@@ -183,6 +201,22 @@ func (r *Room) StartGame() (string, error) {
 
 	r.Status = "playing"
 	r.CurrentWord = word
+
+	// Shuffle turn order
+	r.TurnOrder = make([]string, 0, len(r.Players))
+	for name := range r.Players {
+		r.TurnOrder = append(r.TurnOrder, name)
+	}
+	rand.Shuffle(len(r.TurnOrder), func(i, j int) {
+		r.TurnOrder[i], r.TurnOrder[j] = r.TurnOrder[j], r.TurnOrder[i]
+	})
+	r.TurnIndex = 0
+
+	// Reset scores
+	for _, p := range r.Players {
+		p.Score = 0
+	}
+
 	r.History = []WordEntry{{
 		Word:   word,
 		Player: "システム",
@@ -221,9 +255,14 @@ func (r *Room) runTimer() {
 			left := r.timerLeft
 			if left <= 0 {
 				r.Status = "finished"
+				loser := ""
+				if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {
+					loser = r.TurnOrder[r.TurnIndex]
+				}
 				msg := mustMarshal(map[string]any{
 					"type":    "game_over",
-					"reason":  "time_up",
+					"reason":  "タイムアップ",
+					"loser":   loser,
 					"scores":  r.getScoresLocked(),
 					"history": r.History,
 				})
@@ -256,6 +295,11 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (bool, string) {
 
 	if r.Status != "playing" {
 		return false, "ゲームが開始されていません"
+	}
+
+	// Check it's this player's turn
+	if len(r.TurnOrder) > 0 && r.TurnOrder[r.TurnIndex] != playerName {
+		return false, fmt.Sprintf("%sさんの番です", r.TurnOrder[r.TurnIndex])
 	}
 
 	// Check that word is valid Japanese kana
@@ -311,6 +355,11 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (bool, string) {
 	// Award point
 	if p, ok := r.Players[playerName]; ok {
 		p.Score++
+	}
+
+	// Advance turn
+	if len(r.TurnOrder) > 0 {
+		r.TurnIndex = (r.TurnIndex + 1) % len(r.TurnOrder)
 	}
 
 	// Reset timer
@@ -377,6 +426,10 @@ func (r *Room) GetState() map[string]any {
 	}
 	if r.Settings.TimeLimit > 0 {
 		state["timeLeft"] = r.timerLeft
+	}
+	state["turnOrder"] = r.TurnOrder
+	if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {
+		state["currentTurn"] = r.TurnOrder[r.TurnIndex]
 	}
 	return state
 }

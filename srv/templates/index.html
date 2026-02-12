@@ -265,6 +265,52 @@ input,select{font-family:inherit;font-size:1rem}
   .form-row{grid-template-columns:1fr}
   .card{padding:1rem}
 }
+.turn-indicator {
+  text-align: center;
+  padding: .6rem 1rem;
+  margin-bottom: .5rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+.turn-indicator.my-turn {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border: 2px solid #f59e0b;
+}
+.turn-indicator.other-turn {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+  animation: none;
+}
+.turn-order-list {
+  display: flex;
+  justify-content: center;
+  gap: .5rem;
+  margin-top: .3rem;
+  font-size: .8rem;
+  font-weight: 400;
+}
+.turn-order-item {
+  padding: .15rem .5rem;
+  border-radius: 8px;
+  background: #e0e7ff;
+  color: #4338ca;
+}
+.turn-order-item.active {
+  background: #6366f1;
+  color: #fff;
+}
+.answer-area.disabled input {
+  opacity: .5;
+  pointer-events: none;
+}
+.answer-area.disabled button {
+  opacity: .5;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -346,6 +392,9 @@ input,select{font-family:inherit;font-size:1rem}
 
   <!-- Active game -->
   <div id="activeGame" class="hidden">
+    <div id="turnIndicator" class="turn-indicator">
+      <span id="turnText"></span>
+    </div>
     <div class="current-word-area">
       <div class="current-word-label">現在のことば</div>
       <div class="current-word" id="currentWord">ー</div>
@@ -403,6 +452,8 @@ let currentRoomId = '';
 let currentSettings = {};
 let timerInterval = null;
 let timerMax = 0;
+let currentTurn = '';
+let turnOrder = [];
 
 const $ = id => document.getElementById(id);
 
@@ -506,9 +557,12 @@ function onJoined(msg) {
   renderPlayers(msg.players || [], msg.scores || {});
   $('historyList').innerHTML = '';
   (msg.history || []).forEach(h => addHistoryItem(h.word, h.player));
-  if (msg.currentWord) {
+  if (msg.turnOrder) turnOrder = msg.turnOrder;
+  if (msg.currentTurn) currentTurn = msg.currentTurn;
+  if (msg.currentWord && msg.status === 'playing') {
     showActiveGame(true);
     setCurrentWord(msg.currentWord, msg.nextChar || '');
+    updateTurnDisplay();
   } else {
     showActiveGame(false);
   }
@@ -530,6 +584,32 @@ function showActiveGame(active) {
   $('preGame').classList.toggle('hidden', active);
   $('activeGame').classList.toggle('hidden', !active);
   if (active) $('answerInput').focus();
+}
+
+function updateTurnDisplay() {
+  const el = $('turnIndicator');
+  const txt = $('turnText');
+  const isMyTurn = currentTurn === myName;
+  el.className = 'turn-indicator ' + (isMyTurn ? 'my-turn' : 'other-turn');
+  txt.innerHTML = isMyTurn
+    ? '🎯 あなたの番です！'
+    : `⏳ ${esc(currentTurn)}さんの番です`;
+  // Turn order badges
+  if (turnOrder.length > 1) {
+    const badges = turnOrder.map(n =>
+      `<span class="turn-order-item${n === currentTurn ? ' active' : ''}">${esc(n)}</span>`
+    ).join('');
+    txt.innerHTML += `<div class="turn-order-list">${badges}</div>`;
+  }
+  // Enable/disable input
+  const area = document.querySelector('.answer-area');
+  if (area) area.classList.toggle('disabled', !isMyTurn);
+  const input = $('answerInput');
+  if (input) {
+    input.disabled = !isMyTurn;
+    input.placeholder = isMyTurn ? 'ことばを入力…' : `${currentTurn}さんの番です…`;
+    if (isMyTurn) input.focus();
+  }
 }
 
 function setCurrentWord(word, nextChar) {
@@ -587,6 +667,9 @@ function onGameStarted(msg) {
   showActiveGame(true);
   $('historyList').innerHTML = '';
   setCurrentWord(msg.currentWord || msg.firstWord || '', msg.nextChar || '');
+  if (msg.turnOrder) turnOrder = msg.turnOrder;
+  if (msg.currentTurn) currentTurn = msg.currentTurn;
+  updateTurnDisplay();
   addMessage('ゲームが始まりました！', 'success');
   $('gameOver').classList.add('hidden');
 }
@@ -604,6 +687,8 @@ function onNewWord(msg) {
   setCurrentWord(msg.word, msg.nextChar);
   addHistoryItem(msg.word, msg.player);
   if (msg.scores) updateScores(msg.scores);
+  if (msg.currentTurn) currentTurn = msg.currentTurn;
+  updateTurnDisplay();
   addMessage(`${msg.player}さんが正解！「${msg.word}」`, 'success');
   showScorePopup(msg.player);
 }
