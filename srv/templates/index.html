@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>しりとり - マルチプレイヤー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#6366f1;--primary-light:#818cf8;--primary-dark:#4f46e5;
+  --accent:#f59e0b;--accent-light:#fbbf24;
+  --danger:#ef4444;--success:#22c55e;
+  --bg:#f8f7ff;--surface:#fff;--surface2:#f1f0fb;
+  --text:#1e1b4b;--text2:#6b7280;--text3:#a5b4fc;
+  --radius:12px;--shadow:0 4px 24px rgba(99,102,241,.10);
+}
+html{font-size:16px}
+body{
+  font-family:'Noto Sans JP',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100dvh;line-height:1.6;
+}
+button{font-family:inherit;cursor:pointer;border:none;font-size:.95rem}
+input,select{font-family:inherit;font-size:1rem}
+
+/* ── Animations ── */
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes ripple{to{transform:scale(2.5);opacity:0}}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+@keyframes timerPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+@keyframes wordAppear{0%{opacity:0;transform:scale(.5) rotate(-5deg)}60%{transform:scale(1.05) rotate(1deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes bgShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+.fade-in{animation:fadeIn .4s ease both}
+.slide-up{animation:slideUp .5s ease both}
+.pop-in{animation:popIn .4s ease both}
+
+/* ── Layout ── */
+.container{max-width:900px;margin:0 auto;padding:1rem}
+.hidden{display:none!important}
+
+/* ── Header ── */
+.header{
+  text-align:center;padding:2rem 1rem 1rem;
+  background:linear-gradient(135deg,var(--primary),var(--primary-light),#a78bfa);
+  background-size:200% 200%;animation:bgShift 8s ease infinite;
+  color:#fff;position:relative;overflow:hidden;
+}
+.header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:40px;
+  background:var(--bg);border-radius:50% 50% 0 0;
+}
+.header h1{font-size:2.2rem;font-weight:900;letter-spacing:.05em;text-shadow:0 2px 8px rgba(0,0,0,.15)}
+.header p{font-size:.9rem;opacity:.85;margin-top:.25rem}
+
+/* ── Cards ── */
+.card{
+  background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1rem;
+}
+.card h2{font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:var(--primary);display:flex;align-items:center;gap:.5rem}
+.card h2::before{content:'';width:4px;height:1.2em;background:var(--primary);border-radius:2px}
+
+/* ── Forms ── */
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.85rem;font-weight:500;color:var(--text2);margin-bottom:.3rem}
+.form-group input,.form-group select{
+  width:100%;padding:.65rem .9rem;border:2px solid #e5e7eb;border-radius:8px;
+  background:var(--surface);transition:border-color .2s,box-shadow .2s;
+}
+.form-group input:focus,.form-group select:focus{
+  outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.15);
+}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.7rem 1.5rem;border-radius:8px;font-weight:600;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.3)}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:hover{background:#d97706;transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--primary);border:2px solid var(--primary)}
+.btn-outline:hover{background:var(--primary);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#dc2626}
+.btn-lg{padding:.9rem 2rem;font-size:1.1rem;border-radius:10px}
+.btn-block{width:100%}
+.btn:active{transform:scale(.97)}
+
+/* ── Lobby ── */
+#lobby .player-name-section{
+  text-align:center;padding:1.5rem 0;
+}
+#lobby .player-name-section input{
+  font-size:1.3rem;text-align:center;padding:.8rem 1.2rem;
+  border:2px dashed var(--primary-light);border-radius:var(--radius);
+  background:var(--surface2);max-width:300px;width:100%;
+}
+#lobby .player-name-section input:focus{
+  border-style:solid;border-color:var(--primary);
+}
+.room-list{list-style:none}
+.room-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem;border-radius:8px;background:var(--surface2);
+  margin-bottom:.5rem;transition:all .2s;
+}
+.room-item:hover{background:#e8e6f8;transform:translateX(4px)}
+.room-info{flex:1}
+.room-name{font-weight:700;font-size:1rem}
+.room-meta{font-size:.8rem;color:var(--text2);margin-top:.15rem}
+.room-meta span{margin-right:.75rem}
+.no-rooms{text-align:center;color:var(--text2);padding:2rem;font-size:.95rem}
+
+/* ── Game Room ── */
+#game{position:relative}
+.game-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:.75rem 0;margin-bottom:.5rem;flex-wrap:wrap;gap:.5rem;
+}
+.room-title{font-weight:700;font-size:1rem;color:var(--primary)}
+.game-rules{
+  display:flex;gap:.5rem;flex-wrap:wrap;
+}
+.rule-badge{
+  font-size:.75rem;padding:.25rem .6rem;border-radius:20px;
+  background:var(--surface2);color:var(--text2);font-weight:500;
+}
+
+/* Current word area */
+.current-word-area{
+  text-align:center;padding:2rem 1rem;
+  background:linear-gradient(135deg,#f5f3ff,#ede9fe);
+  border-radius:var(--radius);margin-bottom:1rem;position:relative;
+}
+.current-word-label{font-size:.85rem;color:var(--text2);margin-bottom:.5rem}
+.current-word{
+  font-size:3rem;font-weight:900;color:var(--text);
+  animation:wordAppear .5s ease both;letter-spacing:.1em;
+}
+.next-char-area{margin-top:1rem}
+.next-char-label{font-size:.8rem;color:var(--text2)}
+.next-char{
+  display:inline-block;font-size:2rem;font-weight:900;
+  color:#fff;background:var(--primary);width:3.2rem;height:3.2rem;
+  line-height:3.2rem;border-radius:50%;margin-top:.3rem;
+  animation:pulse 2s ease infinite;
+}
+
+/* Timer */
+.timer-bar{height:6px;background:var(--surface2);border-radius:3px;margin-bottom:1rem;overflow:hidden}
+.timer-bar-inner{height:100%;background:var(--primary);border-radius:3px;transition:width .3s linear}
+.timer-bar-inner.warning{background:var(--accent)}
+.timer-bar-inner.danger{background:var(--danger);animation:timerPulse 1s infinite}
+.timer-text{text-align:center;font-size:1.5rem;font-weight:700;margin-bottom:.5rem}
+.timer-text.warning{color:var(--accent)}
+.timer-text.danger{color:var(--danger)}
+
+/* Answer input */
+.answer-area{
+  display:flex;gap:.5rem;margin-bottom:1rem;
+}
+.answer-area input{
+  flex:1;padding:.8rem 1rem;border:2px solid #e5e7eb;border-radius:8px;
+  font-size:1.2rem;transition:all .2s;
+}
+.answer-area input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.answer-area .btn{padding:.8rem 1.5rem;font-size:1.1rem;min-width:80px}
+
+/* Game layout */
+.game-body{display:grid;grid-template-columns:1fr 260px;gap:1rem}
+@media(max-width:700px){.game-body{grid-template-columns:1fr}}
+
+/* History */
+.history-panel{}
+.history-list{max-height:300px;overflow-y:auto;list-style:none}
+.history-list::-webkit-scrollbar{width:4px}
+.history-list::-webkit-scrollbar-thumb{background:var(--primary-light);border-radius:2px}
+.history-item{
+  display:flex;align-items:center;gap:.75rem;
+  padding:.6rem .8rem;border-radius:8px;margin-bottom:.35rem;
+  background:var(--surface2);animation:slideUp .3s ease both;
+}
+.history-word{font-weight:700;font-size:1.05rem;color:var(--primary-dark)}
+.history-player{font-size:.8rem;color:var(--text2)}
+.history-connector{
+  font-size:.7rem;color:var(--text3);width:20px;text-align:center;
+  flex-shrink:0;
+}
+
+/* Sidebar */
+.sidebar{}
+.player-list{list-style:none}
+.player-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem .7rem;border-radius:6px;margin-bottom:.3rem;
+  transition:background .2s;
+}
+.player-item.current-turn{background:var(--surface2);border-left:3px solid var(--primary)}
+.player-name-display{font-weight:500;font-size:.9rem}
+.player-score{
+  font-weight:700;color:var(--primary);background:var(--surface2);
+  padding:.15rem .5rem;border-radius:12px;font-size:.85rem;
+}
+
+/* Messages */
+.messages{max-height:150px;overflow-y:auto;list-style:none;margin-top:.5rem}
+.messages::-webkit-scrollbar{width:4px}
+.messages::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
+.msg-item{font-size:.8rem;color:var(--text2);padding:.25rem 0;border-bottom:1px solid #f3f4f6}
+.msg-item.msg-success{color:var(--success)}
+.msg-item.msg-error{color:var(--danger)}
+.msg-item.msg-info{color:var(--primary)}
+
+/* ── Game Over ── */
+.game-over-overlay{
+  position:fixed;inset:0;background:rgba(30,27,75,.7);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;z-index:100;
+  animation:fadeIn .3s ease;
+}
+.game-over-card{
+  background:var(--surface);border-radius:var(--radius);padding:2.5rem;
+  text-align:center;max-width:420px;width:90%;animation:popIn .5s ease both;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);
+}
+.game-over-card h2{font-size:1.8rem;margin-bottom:.5rem;color:var(--danger)}
+.game-over-card h2::before{display:none}
+.game-over-reason{color:var(--text2);margin-bottom:1.5rem;font-size:.95rem}
+.final-scores{list-style:none;margin-bottom:1.5rem}
+.final-score-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:.6rem 1rem;border-radius:8px;margin-bottom:.4rem;
+  background:var(--surface2);
+}
+.final-score-item:first-child{background:linear-gradient(90deg,#fef3c7,#fde68a);font-weight:700}
+.final-rank{width:2rem;text-align:center;font-weight:700;color:var(--primary)}
+.final-name{flex:1;text-align:left;margin-left:.5rem}
+.final-pts{font-weight:700;color:var(--primary)}
+
+/* ── Start button area ── */
+.start-area{text-align:center;padding:2rem}
+.waiting-text{color:var(--text2);font-size:.95rem;margin-bottom:1rem}
+
+/* ── Floating score popup ── */
+.score-popup{
+  position:fixed;pointer-events:none;font-size:1.5rem;font-weight:900;
+  color:var(--success);animation:floatUp 1s ease both;z-index:50;
+}
+
+/* ── Responsive ── */
+@media(max-width:500px){
+  .header h1{font-size:1.6rem}
+  .current-word{font-size:2.2rem}
+  .next-char{font-size:1.5rem;width:2.5rem;height:2.5rem;line-height:2.5rem}
+  .form-row{grid-template-columns:1fr}
+  .card{padding:1rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎌 しりとり</h1>
+  <p>みんなで楽しくことばをつなごう！</p>
+</div>
+
+<!-- ═══ LOBBY ═══ -->
+<div id="lobby" class="container fade-in">
+  <div class="player-name-section">
+    <input type="text" id="playerName" placeholder="名前を入力…" maxlength="12" autocomplete="off">
+  </div>
+
+  <div class="card slide-up">
+    <h2>ルームを作る</h2>
+    <div class="form-group">
+      <label>ルーム名</label>
+      <input type="text" id="roomNameInput" placeholder="楽しいしりとり" maxlength="20">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>最少文字数</label>
+        <input type="number" id="minLen" value="1" min="1" max="20">
+      </div>
+      <div class="form-group">
+        <label>最大文字数（0＝制限なし）</label>
+        <input type="number" id="maxLen" value="0" min="0" max="99">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ジャンル</label>
+        <select id="genre">
+          <option value="">なし</option>
+          <option value="食べ物">食べ物</option>
+          <option value="動物">動物</option>
+          <option value="国名">国名</option>
+          <option value="都道府県">都道府県</option>
+          <option value="スポーツ">スポーツ</option>
+          <option value="植物">植物</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>制限時間</label>
+        <select id="timeLimit">
+          <option value="0">なし</option>
+          <option value="10">10秒</option>
+          <option value="20">20秒</option>
+          <option value="30" selected>30秒</option>
+          <option value="60">60秒</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
+  </div>
+
+  <div class="card slide-up" style="animation-delay:.1s">
+    <h2>ルーム一覧 <button class="btn btn-outline" style="margin-left:auto;padding:.3rem .8rem;font-size:.8rem" onclick="refreshRooms()">更新</button></h2>
+    <ul id="roomList" class="room-list"></ul>
+    <div id="noRooms" class="no-rooms">現在アクティブなルームはありません</div>
+  </div>
+</div>
+
+<!-- ═══ GAME ROOM ═══ -->
+<div id="game" class="container hidden">
+  <div class="game-header">
+    <span class="room-title" id="gameRoomTitle">ルーム</span>
+    <div class="game-rules" id="gameRules"></div>
+    <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem" onclick="leaveRoom()">退出</button>
+  </div>
+
+  <!-- Pre-game / waiting -->
+  <div id="preGame" class="card start-area">
+    <p class="waiting-text">プレイヤーを待っています…</p>
+    <button class="btn btn-accent btn-lg" onclick="startGame()">🎮 ゲーム開始</button>
+  </div>
+
+  <!-- Active game -->
+  <div id="activeGame" class="hidden">
+    <div class="current-word-area">
+      <div class="current-word-label">現在のことば</div>
+      <div class="current-word" id="currentWord">ー</div>
+      <div class="next-char-area">
+        <div class="next-char-label">次の文字</div>
+        <div class="next-char" id="nextChar">？</div>
+      </div>
+    </div>
+
+    <div id="timerSection" class="hidden">
+      <div class="timer-text" id="timerText">30</div>
+      <div class="timer-bar"><div class="timer-bar-inner" id="timerBar"></div></div>
+    </div>
+
+    <div class="answer-area">
+      <input type="text" id="answerInput" placeholder="ことばを入力…" autocomplete="off">
+      <button class="btn btn-primary" onclick="submitAnswer()">送信</button>
+    </div>
+
+    <div class="game-body">
+      <div class="history-panel card">
+        <h2>履歴</h2>
+        <ul class="history-list" id="historyList"></ul>
+      </div>
+      <div class="sidebar">
+        <div class="card">
+          <h2>プレイヤー</h2>
+          <ul class="player-list" id="playerList"></ul>
+        </div>
+        <div class="card">
+          <h2>メッセージ</h2>
+          <ul class="messages" id="messageList"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ GAME OVER OVERLAY ═══ -->
+<div id="gameOver" class="game-over-overlay hidden">
+  <div class="game-over-card">
+    <h2>ゲーム終了！</h2>
+    <p class="game-over-reason" id="gameOverReason"></p>
+    <ul class="final-scores" id="finalScores"></ul>
+    <button class="btn btn-primary btn-lg" onclick="playAgain()" style="margin-right:.5rem">🔄 もう一度</button>
+    <button class="btn btn-outline btn-lg" onclick="backToLobby()">🏠 ロビーへ</button>
+  </div>
+</div>
+
+<script>
+/* ========== STATE ========== */
+let ws = null;
+let myName = '';
+let currentRoomId = '';
+let currentSettings = {};
+let timerInterval = null;
+let timerMax = 0;
+
+const $ = id => document.getElementById(id);
+
+/* ========== WEBSOCKET ========== */
+function connect() {
+  if (ws && ws.readyState <= 1) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+  ws.onopen = () => { console.log('WS connected'); refreshRooms(); };
+  ws.onclose = () => { console.log('WS closed'); setTimeout(connect, 2000); };
+  ws.onerror = e => console.error('WS error', e);
+  ws.onmessage = e => handleMessage(JSON.parse(e.data));
+}
+
+function send(obj) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+/* ========== MESSAGE HANDLER ========== */
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'rooms': renderRoomList(msg.rooms || []); break;
+    case 'room_joined': onJoined(msg); break;
+    case 'player_joined': onPlayerJoined(msg.player); break;
+    case 'player_left': onPlayerLeft(msg.player); break;
+    case 'game_started': onGameStarted(msg); break;
+    case 'word_accepted': onNewWord(msg); break;
+    case 'answer_rejected': onInvalid(msg.message); break;
+    case 'timer': onTimer(msg.seconds); break;
+    case 'game_over': onGameOver(msg); break;
+    case 'room_state': onJoined(msg); break;
+    case 'error': addMessage(msg.message, 'error'); break;
+    default: console.log('Unknown message', msg);
+  }
+}
+
+/* ========== LOBBY ========== */
+function refreshRooms() { send({ type: 'get_rooms' }); }
+
+function renderRoomList(rooms) {
+  const list = $('roomList');
+  const noRooms = $('noRooms');
+  list.innerHTML = '';
+  if (!rooms.length) { noRooms.classList.remove('hidden'); return; }
+  noRooms.classList.add('hidden');
+  rooms.forEach(r => {
+    const li = document.createElement('li');
+    li.className = 'room-item fade-in';
+    const statusLabel = r.status === 'playing' ? '🎮 プレイ中' : '⏳ 待機中';
+    const genreLabel = r.settings && r.settings.genre ? r.settings.genre : 'なし';
+    li.innerHTML = `
+      <div class="room-info">
+        <div class="room-name">${esc(r.name)}</div>
+        <div class="room-meta">
+          <span>👥 ${r.players || 0}人</span>
+          <span>🏷️ ${genreLabel}</span>
+          <span>${statusLabel}</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="joinRoom('${esc(r.id)}')"
+        ${r.status === 'playing' ? 'disabled style="opacity:.5"' : ''}>参加</button>`;
+    list.appendChild(li);
+  });
+}
+
+function getName() {
+  const name = $('playerName').value.trim();
+  if (!name) { $('playerName').focus(); $('playerName').style.borderColor = 'var(--danger)'; return null; }
+  $('playerName').style.borderColor = '';
+  return name;
+}
+
+function createRoom() {
+  const name = getName(); if (!name) return;
+  myName = name;
+  send({
+    type: 'create_room', name,
+    settings: {
+      name: $('roomNameInput').value.trim() || 'しりとりルーム',
+      minLen: parseInt($('minLen').value) || 1,
+      maxLen: parseInt($('maxLen').value) || 0,
+      genre: $('genre').value,
+      timeLimit: parseInt($('timeLimit').value) || 0
+    }
+  });
+}
+
+function joinRoom(roomId) {
+  const name = getName(); if (!name) return;
+  myName = name;
+  send({ type: 'join', name, roomId });
+}
+
+/* ========== GAME ROOM ========== */
+function onJoined(msg) {
+  currentRoomId = msg.roomId;
+  currentSettings = msg.settings || {};
+  showView('game');
+  $('gameRoomTitle').textContent = currentSettings.name || 'ルーム';
+  renderRules();
+  renderPlayers(msg.players || [], msg.scores || {});
+  $('historyList').innerHTML = '';
+  (msg.history || []).forEach(h => addHistoryItem(h.word, h.player));
+  if (msg.currentWord) {
+    showActiveGame(true);
+    setCurrentWord(msg.currentWord, msg.nextChar || '');
+  } else {
+    showActiveGame(false);
+  }
+  addMessage('ルームに参加しました', 'info');
+}
+
+function renderRules() {
+  const s = currentSettings;
+  let badges = [];
+  if (s.genre) badges.push(`🏷️ ${s.genre}`);
+  if (s.minLen > 1) badges.push(`最少${s.minLen}文字`);
+  if (s.maxLen > 0) badges.push(`最大${s.maxLen}文字`);
+  if (s.timeLimit > 0) badges.push(`⏱️ ${s.timeLimit}秒`);
+  $('gameRules').innerHTML = badges.map(b => `<span class="rule-badge">${b}</span>`).join('');
+  timerMax = s.timeLimit || 0;
+}
+
+function showActiveGame(active) {
+  $('preGame').classList.toggle('hidden', active);
+  $('activeGame').classList.toggle('hidden', !active);
+  if (active) $('answerInput').focus();
+}
+
+function setCurrentWord(word, nextChar) {
+  const el = $('currentWord');
+  el.textContent = word;
+  el.style.animation = 'none'; el.offsetHeight; el.style.animation = '';
+  $('nextChar').textContent = nextChar || '?';
+}
+
+function renderPlayers(players, scores) {
+  const list = $('playerList');
+  list.innerHTML = '';
+  // players can be [{name,score}] from server or string[]
+  let items = [];
+  if (Array.isArray(players) && players.length > 0 && typeof players[0] === 'object') {
+    items = players.map(p => ({ name: p.name, score: p.score || 0 }));
+  } else {
+    const arr = Array.isArray(players) ? players : Object.keys(players);
+    items = arr.map(p => ({ name: p, score: (scores && scores[p]) || 0 }));
+  }
+  items.sort((a, b) => b.score - a.score);
+  items.forEach(p => {
+    const li = document.createElement('li');
+    li.className = 'player-item';
+    li.innerHTML = `<span class="player-name-display">${esc(p.name)}${p.name === myName ? ' 👈' : ''}</span>
+      <span class="player-score">${p.score}点</span>`;
+    list.appendChild(li);
+  });
+}
+
+function onPlayerJoined(name) {
+  addMessage(`${name}さんが参加しました`, 'info');
+  // Add to list if not there
+  const list = $('playerList');
+  const exists = [...list.children].some(li => li.querySelector('.player-name-display').textContent.startsWith(name));
+  if (!exists) {
+    const li = document.createElement('li');
+    li.className = 'player-item fade-in';
+    li.innerHTML = `<span class="player-name-display">${esc(name)}</span><span class="player-score">0点</span>`;
+    list.appendChild(li);
+  }
+}
+
+function onPlayerLeft(name) {
+  addMessage(`${name}さんが退出しました`, 'error');
+  const list = $('playerList');
+  [...list.children].forEach(li => {
+    if (li.querySelector('.player-name-display').textContent.startsWith(name)) li.remove();
+  });
+}
+
+function startGame() { send({ type: 'start_game' }); }
+
+function onGameStarted(msg) {
+  showActiveGame(true);
+  $('historyList').innerHTML = '';
+  setCurrentWord(msg.currentWord || msg.firstWord || '', msg.nextChar || '');
+  addMessage('ゲームが始まりました！', 'success');
+  $('gameOver').classList.add('hidden');
+}
+
+function submitAnswer() {
+  const input = $('answerInput');
+  const word = input.value.trim();
+  if (!word) return;
+  send({ type: 'answer', word });
+  input.value = '';
+  input.focus();
+}
+
+function onNewWord(msg) {
+  setCurrentWord(msg.word, msg.nextChar);
+  addHistoryItem(msg.word, msg.player);
+  if (msg.scores) updateScores(msg.scores);
+  addMessage(`${msg.player}さんが正解！「${msg.word}」`, 'success');
+  showScorePopup(msg.player);
+}
+
+function addHistoryItem(word, player) {
+  const list = $('historyList');
+  const li = document.createElement('li');
+  li.className = 'history-item';
+  li.innerHTML = `<span class="history-word">${esc(word)}</span>
+    <span class="history-player">${esc(player)}</span>`;
+  list.prepend(li);
+}
+
+function updateScores(scores) {
+  const list = $('playerList');
+  [...list.children].forEach(li => {
+    const nameEl = li.querySelector('.player-name-display');
+    const scoreEl = li.querySelector('.player-score');
+    const rawName = nameEl.textContent.replace(' 👈', '');
+    if (scores[rawName] !== undefined) scoreEl.textContent = scores[rawName] + '点';
+  });
+  // Re-sort
+  const items = [...list.children];
+  items.sort((a, b) => {
+    const sa = parseInt(a.querySelector('.player-score').textContent) || 0;
+    const sb = parseInt(b.querySelector('.player-score').textContent) || 0;
+    return sb - sa;
+  });
+  items.forEach(i => list.appendChild(i));
+}
+
+function onInvalid(reason) {
+  addMessage(reason, 'error');
+  const input = $('answerInput');
+  input.style.animation = 'shake .4s ease';
+  input.style.borderColor = 'var(--danger)';
+  setTimeout(() => { input.style.animation = ''; input.style.borderColor = ''; }, 500);
+}
+
+function onTimer(seconds) {
+  const section = $('timerSection');
+  section.classList.remove('hidden');
+  const text = $('timerText');
+  const bar = $('timerBar');
+  const pct = timerMax > 0 ? (seconds / timerMax * 100) : 100;
+  text.textContent = seconds;
+  bar.style.width = pct + '%';
+  text.className = 'timer-text';
+  bar.className = 'timer-bar-inner';
+  if (seconds <= 5) { text.classList.add('danger'); bar.classList.add('danger'); }
+  else if (seconds <= 10) { text.classList.add('warning'); bar.classList.add('warning'); }
+}
+
+function onGameOver(msg) {
+  const overlay = $('gameOver');
+  overlay.classList.remove('hidden');
+  let reason = msg.reason || '';
+  if (msg.loser) reason = `${msg.loser}さん - ${reason}`;
+  $('gameOverReason').textContent = reason;
+  const list = $('finalScores');
+  list.innerHTML = '';
+  const scores = msg.scores || {};
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const medals = ['🥇', '🥈', '🥉'];
+  sorted.forEach(([name, score], i) => {
+    const li = document.createElement('li');
+    li.className = 'final-score-item';
+    li.innerHTML = `<span class="final-rank">${medals[i] || (i + 1)}</span>
+      <span class="final-name">${esc(name)}</span>
+      <span class="final-pts">${score}点</span>`;
+    list.appendChild(li);
+  });
+  clearInterval(timerInterval);
+  $('timerSection').classList.add('hidden');
+}
+
+function playAgain() {
+  $('gameOver').classList.add('hidden');
+  showActiveGame(false);
+  startGame();
+}
+
+function backToLobby() {
+  $('gameOver').classList.add('hidden');
+  leaveRoom();
+}
+
+function leaveRoom() {
+  currentRoomId = '';
+  showView('lobby');
+  refreshRooms();
+}
+
+/* ========== MESSAGES ========== */
+function addMessage(text, type) {
+  const list = $('messageList');
+  if (!list) return;
+  const li = document.createElement('li');
+  li.className = 'msg-item' + (type ? ` msg-${type}` : '');
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  li.textContent = `[${ts}] ${text}`;
+  list.appendChild(li);
+  list.scrollTop = list.scrollHeight;
+}
+
+/* ========== UI HELPERS ========== */
+function showView(view) {
+  $('lobby').classList.toggle('hidden', view !== 'lobby');
+  $('game').classList.toggle('hidden', view !== 'game');
+}
+
+function showScorePopup(player) {
+  const el = document.createElement('div');
+  el.className = 'score-popup';
+  el.textContent = '+1';
+  el.style.left = (Math.random() * 60 + 20) + '%';
+  el.style.top = '40%';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ========== KEYBOARD ========== */
+$('answerInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !$('lobby').classList.contains('hidden')) {
+    // If in lobby and name filled, could create room
+  }
+});
+
+/* ========== INIT ========== */
+connect();
+// Refresh rooms periodically
+setInterval(() => {
+  if (!$('lobby').classList.contains('hidden')) refreshRooms();
+}, 5000);
+</script>
+</body>
+</html>
+
