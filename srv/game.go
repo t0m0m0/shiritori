@@ -55,15 +55,39 @@ type Room struct {
 
 // RoomManager manages all active rooms.
 type RoomManager struct {
-	mu    sync.RWMutex
-	rooms map[string]*Room
+	mu      sync.RWMutex
+	rooms   map[string]*Room
+	// playerRoom tracks which room each player name is currently in.
+	playerRoom map[string]string // player name -> room ID
 }
 
 // NewRoomManager creates a new RoomManager.
 func NewRoomManager() *RoomManager {
 	return &RoomManager{
-		rooms: make(map[string]*Room),
+		rooms:      make(map[string]*Room),
+		playerRoom: make(map[string]string),
 	}
+}
+
+// TrackPlayer records that a player is in a room.
+func (rm *RoomManager) TrackPlayer(name, roomID string) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	rm.playerRoom[name] = roomID
+}
+
+// UntrackPlayer removes a player's room tracking.
+func (rm *RoomManager) UntrackPlayer(name string) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	delete(rm.playerRoom, name)
+}
+
+// PlayerRoomID returns the room ID the player is in, or "" if none.
+func (rm *RoomManager) PlayerRoomID(name string) string {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	return rm.playerRoom[name]
 }
 
 // CreateRoom creates a new room with the given settings.

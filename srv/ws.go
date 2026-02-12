@@ -63,24 +63,30 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 	var playerName string
 	var currentRoom *Room
 
+	// leaveCurrentRoom removes the player from their current room.
+	leaveCurrentRoom := func() {
+		if currentRoom == nil || playerName == "" {
+			return
+		}
+		remaining := currentRoom.RemovePlayer(playerName)
+		s.Rooms.UntrackPlayer(playerName)
+
+		currentRoom.Broadcast(mustMarshal(map[string]any{
+			"type":   "player_left",
+			"player": playerName,
+		}))
+
+		if remaining == 0 {
+			currentRoom.StopTimer()
+			s.Rooms.RemoveRoom(currentRoom.ID)
+			slog.Info("room removed (empty)", "roomId", currentRoom.ID)
+		}
+		currentRoom = nil
+	}
+
 	// Cleanup on disconnect
 	defer func() {
-		if currentRoom != nil && playerName != "" {
-			remaining := currentRoom.RemovePlayer(playerName)
-
-			// Notify others
-			currentRoom.Broadcast(mustMarshal(map[string]any{
-				"type":   "player_left",
-				"player": playerName,
-			}))
-
-			// Remove room if empty
-			if remaining == 0 {
-				currentRoom.StopTimer()
-				s.Rooms.RemoveRoom(currentRoom.ID)
-				slog.Info("room removed (empty)", "roomId", currentRoom.ID)
-			}
-		}
+		leaveCurrentRoom()
 		conn.Close()
 	}()
 
@@ -105,11 +111,21 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 				sendError(conn, "名前とルーム設定が必要です")
 				continue
 			}
+			// Check if this name is already in a room (from another connection)
+			if existingRoomID := s.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
+				// Only allow if this is the same connection & same player name (re-creating)
+				if playerName != msg.Name || currentRoom == nil || currentRoom.ID != existingRoomID {
+					sendError(conn, fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
+					continue
+				}
+			}
+			// Leave current room first if in one
+			leaveCurrentRoom()
 			playerName = msg.Name
 			room, player := s.handleCreateRoom(conn, playerName, msg.Settings)
 			currentRoom = room
+			s.Rooms.TrackPlayer(playerName, currentRoom.ID)
 			_ = player
-			// Start writer goroutine
 			go writePump(conn, s.Rooms.GetRoom(currentRoom.ID).Players[playerName])
 
 		case "join":
@@ -117,6 +133,16 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 				sendError(conn, "名前とルームIDが必要です")
 				continue
 			}
+			// Check if this name is already in a room (from another connection)
+			if existingRoomID := s.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
+				// Only allow if this is the same connection & same player name (re-joining)
+				if playerName != msg.Name || currentRoom == nil || currentRoom.ID != existingRoomID {
+					sendError(conn, fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
+					continue
+				}
+			}
+			// Leave current room first if in one
+			leaveCurrentRoom()
 			playerName = msg.Name
 			room, err := s.handleJoinRoom(conn, playerName, msg.RoomID)
 			if err != nil {
@@ -124,8 +150,11 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			currentRoom = room
-			// Start writer goroutine
+			s.Rooms.TrackPlayer(playerName, currentRoom.ID)
 			go writePump(conn, currentRoom.Players[playerName])
+
+		case "leave_room":
+			leaveCurrentRoom()
 
 		case "start_game":
 			if currentRoom == nil {

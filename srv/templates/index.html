@@ -828,6 +828,7 @@ function backToLobby() {
 }
 
 function leaveRoom() {
+  send({ type: 'leave_room' });
   currentRoomId = '';
   showView('lobby');
   refreshRooms();
