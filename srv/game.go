@@ -37,6 +37,7 @@ type Player struct {
 type Room struct {
 	mu          sync.Mutex
 	ID          string        `json:"id"`
+	Owner       string        `json:"owner"`
 	Settings    RoomSettings  `json:"settings"`
 	Players     map[string]*Player
 	History     []WordEntry   `json:"history"`
@@ -431,5 +432,6 @@ func (r *Room) GetState() map[string]any {
 	if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {
 		state["currentTurn"] = r.TurnOrder[r.TurnIndex]
 	}
+	state["owner"] = r.Owner
 	return state
 }

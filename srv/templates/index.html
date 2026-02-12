@@ -303,6 +303,18 @@ input,select{font-family:inherit;font-size:1rem}
   background: #6366f1;
   color: #fff;
 }
+.waiting-players { margin-bottom: 1.2rem; }
+.waiting-players h3 { font-size: .95rem; color: var(--primary); margin-bottom: .5rem; }
+.waiting-player-list {
+  list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+}
+.waiting-player-list li {
+  background: #e0e7ff; color: #4338ca; padding: .3rem .8rem; border-radius: 20px;
+  font-size: .9rem; font-weight: 600; display: flex; align-items: center; gap: .3rem;
+}
+.waiting-player-list li .owner-badge {
+  font-size: .7rem; background: #f59e0b; color: #fff; padding: .1rem .4rem; border-radius: 8px;
+}
 .answer-area.disabled input {
   opacity: .5;
   pointer-events: none;
@@ -387,7 +399,12 @@ input,select{font-family:inherit;font-size:1rem}
   <!-- Pre-game / waiting -->
   <div id="preGame" class="card start-area">
     <p class="waiting-text">プレイヤーを待っています…</p>
-    <button class="btn btn-accent btn-lg" onclick="startGame()">🎮 ゲーム開始</button>
+    <div class="waiting-players">
+      <h3>👥 参加者</h3>
+      <ul id="waitingPlayerList" class="waiting-player-list"></ul>
+    </div>
+    <button id="startBtn" class="btn btn-accent btn-lg" onclick="startGame()">🎮 ゲーム開始</button>
+    <p id="waitOwnerText" class="waiting-text hidden">ルーム作成者の開始を待っています…</p>
   </div>
 
   <!-- Active game -->
@@ -454,6 +471,8 @@ let timerInterval = null;
 let timerMax = 0;
 let currentTurn = '';
 let turnOrder = [];
+let roomOwner = '';
+let waitingPlayers = [];
 
 const $ = id => document.getElementById(id);
 
@@ -551,6 +570,7 @@ function joinRoom(roomId) {
 function onJoined(msg) {
   currentRoomId = msg.roomId;
   currentSettings = msg.settings || {};
+  roomOwner = msg.owner || '';
   showView('game');
   $('gameRoomTitle').textContent = currentSettings.name || 'ルーム';
   renderRules();
@@ -559,6 +579,9 @@ function onJoined(msg) {
   (msg.history || []).forEach(h => addHistoryItem(h.word, h.player));
   if (msg.turnOrder) turnOrder = msg.turnOrder;
   if (msg.currentTurn) currentTurn = msg.currentTurn;
+  // Extract player names from players array
+  waitingPlayers = (msg.players || []).map(p => typeof p === 'object' ? p.name : p);
+  updateWaitingRoom();
   if (msg.currentWord && msg.status === 'playing') {
     showActiveGame(true);
     setCurrentWord(msg.currentWord, msg.nextChar || '');
@@ -567,6 +590,23 @@ function onJoined(msg) {
     showActiveGame(false);
   }
   addMessage('ルームに参加しました', 'info');
+}
+
+function updateWaitingRoom() {
+  const list = $('waitingPlayerList');
+  if (!list) return;
+  list.innerHTML = '';
+  waitingPlayers.forEach(name => {
+    const li = document.createElement('li');
+    li.innerHTML = esc(name)
+      + (name === roomOwner ? ' <span class="owner-badge">ホスト</span>' : '')
+      + (name === myName ? ' 👈' : '');
+    list.appendChild(li);
+  });
+  // Show/hide start button based on ownership
+  const isOwner = myName === roomOwner;
+  $('startBtn').classList.toggle('hidden', !isOwner);
+  $('waitOwnerText').classList.toggle('hidden', isOwner);
 }
 
 function renderRules() {
@@ -642,7 +682,7 @@ function renderPlayers(players, scores) {
 
 function onPlayerJoined(name) {
   addMessage(`${name}さんが参加しました`, 'info');
-  // Add to list if not there
+  // Add to game player list
   const list = $('playerList');
   const exists = [...list.children].some(li => li.querySelector('.player-name-display').textContent.startsWith(name));
   if (!exists) {
@@ -651,6 +691,9 @@ function onPlayerJoined(name) {
     li.innerHTML = `<span class="player-name-display">${esc(name)}</span><span class="player-score">0点</span>`;
     list.appendChild(li);
   }
+  // Update waiting room
+  if (!waitingPlayers.includes(name)) waitingPlayers.push(name);
+  updateWaitingRoom();
 }
 
 function onPlayerLeft(name) {
@@ -659,6 +702,9 @@ function onPlayerLeft(name) {
   [...list.children].forEach(li => {
     if (li.querySelector('.player-name-display').textContent.startsWith(name)) li.remove();
   });
+  // Update waiting room
+  waitingPlayers = waitingPlayers.filter(n => n !== name);
+  updateWaitingRoom();
 }
 
 function startGame() { send({ type: 'start_game' }); }

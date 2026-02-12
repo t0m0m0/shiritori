@@ -132,6 +132,10 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 				sendError(conn, "ルームに参加していません")
 				continue
 			}
+			if currentRoom.Owner != playerName {
+				sendError(conn, "ゲームを開始できるのはルーム作成者のみです")
+				continue
+			}
 			s.handleStartGame(currentRoom)
 
 		case "answer":
@@ -191,6 +195,7 @@ func (s *Server) handleGetGenres(conn *websocket.Conn) {
 func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *RoomSettings) (*Room, *Player) {
 	roomID := generateRoomID()
 	room := s.Rooms.CreateRoom(roomID, *settings)
+	room.Owner = name
 
 	player := &Player{
 		Name: name,
