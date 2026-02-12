@@ -501,7 +501,7 @@ function handleMessage(msg) {
     case 'game_started': onGameStarted(msg); break;
     case 'word_accepted': onNewWord(msg); break;
     case 'answer_rejected': onInvalid(msg.message); break;
-    case 'timer': onTimer(msg.seconds); break;
+    case 'timer': onTimer(msg.timeLeft); break;
     case 'game_over': onGameOver(msg); break;
     case 'room_state': onJoined(msg); break;
     case 'error': addMessage(msg.message, 'error'); break;
@@ -716,6 +716,11 @@ function onGameStarted(msg) {
   if (msg.turnOrder) turnOrder = msg.turnOrder;
   if (msg.currentTurn) currentTurn = msg.currentTurn;
   updateTurnDisplay();
+  // Initialize timer display
+  if (msg.timeLimit && msg.timeLimit > 0) {
+    timerMax = msg.timeLimit;
+    onTimer(msg.timeLimit);
+  }
   addMessage('ゲームが始まりました！', 'success');
   $('gameOver').classList.add('hidden');
 }
@@ -780,7 +785,7 @@ function onTimer(seconds) {
   const text = $('timerText');
   const bar = $('timerBar');
   const pct = timerMax > 0 ? (seconds / timerMax * 100) : 100;
-  text.textContent = seconds;
+  text.textContent = seconds + '秒';
   bar.style.width = pct + '%';
   text.className = 'timer-text';
   bar.className = 'timer-bar-inner';
