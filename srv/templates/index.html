@@ -586,8 +586,9 @@ input,select{font-family:inherit;font-size:1rem}
     <h2>ゲーム終了！</h2>
     <p class="game-over-reason" id="gameOverReason"></p>
     <ul class="final-scores" id="finalScores"></ul>
-    <button class="btn btn-primary btn-lg" onclick="playAgain()" style="margin-right:.5rem">🔄 もう一度</button>
+    <button id="playAgainBtn" class="btn btn-primary btn-lg" onclick="playAgain()" style="margin-right:.5rem">🔄 もう一度</button>
     <button class="btn btn-outline btn-lg" onclick="backToLobby()">🏠 ロビーへ</button>
+    <p id="playAgainWait" class="game-over-reason hidden">ホストの開始を待っています…</p>
   </div>
 </div>
 
@@ -765,6 +766,9 @@ function onJoined(msg) {
   } else {
     showActiveGame(false);
   }
+  $('playAgainBtn')?.classList.remove('hidden');
+  $('playAgainWait')?.classList.add('hidden');
+  $('gameOver').classList.add('hidden');
   addMessage('ルームに参加しました', 'info');
 }
 
@@ -912,6 +916,8 @@ function onGameStarted(msg) {
   } else {
     addMessage(`ゲームが始まりました！${esc(msg.currentTurn)}さんが最初のことばを選びます`, 'success');
   }
+  $('playAgainBtn')?.classList.remove('hidden');
+  $('playAgainWait')?.classList.add('hidden');
   $('gameOver').classList.add('hidden');
 }
 
@@ -1022,6 +1028,12 @@ function onGameOver(msg) {
 }
 
 function playAgain() {
+  if (myName !== roomOwner) {
+    $('playAgainBtn')?.classList.add('hidden');
+    $('playAgainWait')?.classList.remove('hidden');
+    addMessage('ホストの開始を待っています…', 'info');
+    return;
+  }
   $('gameOver').classList.add('hidden');
   showActiveGame(false);
   startGame();

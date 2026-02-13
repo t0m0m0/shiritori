@@ -239,6 +239,15 @@ func (r *Room) StartGame() error {
 		return fmt.Errorf("need at least 1 player")
 	}
 
+	if r.timerCancel != nil {
+		select {
+		case <-r.timerCancel:
+		default:
+			close(r.timerCancel)
+		}
+		r.timerCancel = nil
+	}
+
 	r.Status = "playing"
 	r.CurrentWord = "" // owner picks the first word
 
@@ -267,6 +276,7 @@ func (r *Room) StartGame() error {
 
 	r.History = []WordEntry{}
 	r.UsedWords = make(map[string]bool)
+	r.pendingVote = nil
 
 	// Start timer if applicable
 	if r.Settings.TimeLimit > 0 {
@@ -309,6 +319,7 @@ func (r *Room) runTimer() {
 					"history": r.History,
 				})
 				r.broadcastLocked(msg)
+				r.timerCancel = nil
 				r.mu.Unlock()
 				return
 			}
@@ -651,6 +662,7 @@ func (r *Room) StopTimer() {
 		default:
 			close(r.timerCancel)
 		}
+		r.timerCancel = nil
 	}
 }
 

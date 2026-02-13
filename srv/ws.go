@@ -404,6 +404,7 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 		if gameOver {
 			room.mu.Lock()
 			room.Status = "finished"
+			room.pendingVote = nil
 			room.mu.Unlock()
 			room.StopTimer()
 
