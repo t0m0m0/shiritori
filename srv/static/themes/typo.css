@@ -999,17 +999,38 @@
 
 /* ── Theme Switcher for Typo ── */
 [data-theme="typo"] .theme-switcher {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+}
+[data-theme="typo"] .theme-toggle {
+  border-color: rgba(0,0,0,.2);
+  background: transparent;
+}
+[data-theme="typo"] .theme-toggle:hover {
+  border-color: rgba(0,0,0,.5);
+  background: rgba(0,0,0,.04);
+}
+[data-theme="typo"] .theme-panel {
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 0;
+  box-shadow: 0 4px 20px rgba(0,0,0,.1);
+}
+[data-theme="typo"] .theme-panel::before {
+  background: #fafafa;
+  border-top: 1px solid #ddd;
+  border-left: 1px solid #ddd;
+}
+[data-theme="typo"] .theme-panel-title {
+  color: #999;
+  border-bottom-color: #ddd;
 }
 [data-theme="typo"] .theme-btn {
-  border-color: rgba(0,0,0,.2);
-  background: rgba(0,0,0,.03);
+  color: #111;
+  border-radius: 0;
 }
 [data-theme="typo"] .theme-btn:hover {
-  border-color: rgba(0,0,0,.5);
+  background: #f0f0f0;
 }
 [data-theme="typo"] .theme-btn.active {
-  border-color: #111;
-  background: rgba(0,0,0,.08);
-  box-shadow: none;
+  background: #eee;
 }

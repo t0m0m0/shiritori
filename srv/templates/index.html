@@ -602,33 +602,99 @@ input,select{font-family:inherit;font-size:1rem}
 
 /* ── Theme Switcher ── */
 .theme-switcher {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-  margin-top: .5rem;
-  position: relative;
-  z-index: 10;
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 200;
+}
+.theme-toggle {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.12);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all .25s;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; line-height: 1;
+}
+.theme-toggle:hover {
+  border-color: rgba(255,255,255,.7);
+  background: rgba(255,255,255,.2);
+  transform: scale(1.1);
+}
+.theme-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  transform: scale(.9);
+  transform-origin: top right;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+  padding: 10px;
+  min-width: 160px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.theme-panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+.theme-panel::before {
+  content: '';
+  position: absolute;
+  top: -6px; right: 12px;
+  transform: rotate(45deg);
+  width: 12px; height: 12px;
+  background: #fff;
+  border-radius: 2px;
+}
+.theme-panel-title {
+  font-size: .65rem;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  padding: 2px 6px 6px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 4px;
 }
 .theme-btn {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,.3);
-  background: rgba(255,255,255,.1);
-  font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   cursor: pointer;
-  transition: all .2s;
-  padding: 0;
-  line-height: 1;
+  transition: background .15s;
+  font-size: .85rem;
+  color: #333;
 }
 .theme-btn:hover {
-  border-color: rgba(255,255,255,.7);
-  transform: scale(1.15);
+  background: #f3f3f3;
 }
 .theme-btn.active {
-  border-color: #fff;
-  background: rgba(255,255,255,.25);
-  box-shadow: 0 0 8px rgba(255,255,255,.3);
+  background: #eef0ff;
+  font-weight: 600;
+}
+.theme-swatch {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.theme-swatch span {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  display: block;
+}
+.theme-label {
+  white-space: nowrap;
 }
 </style>
 </head>
@@ -637,11 +703,44 @@ input,select{font-family:inherit;font-size:1rem}
 <div class="header">
   <h1><a href="/">🎌 しりとり</a></h1>
   <p>みんなで楽しくことばをつなごう！</p>
-  <div class="theme-switcher" id="themeSwitcher">
-    <button class="theme-btn" data-theme="default" title="デフォルト">🟣</button>
-    <button class="theme-btn" data-theme="wamo" title="和モダン">🖤</button>
-    <button class="theme-btn" data-theme="neon" title="ネオン">💜</button>
-    <button class="theme-btn" data-theme="typo" title="活版">⬛</button>
+</div>
+
+<div class="theme-switcher" id="themeSwitcher">
+  <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">🎨</button>
+  <div class="theme-panel" id="themePanel">
+    <div class="theme-panel-title">テーマ</div>
+    <button class="theme-btn" data-theme="default">
+      <span class="theme-swatch">
+        <span style="background:#6366f1"></span>
+        <span style="background:#818cf8"></span>
+        <span style="background:#f59e0b"></span>
+      </span>
+      <span class="theme-label">デフォルト</span>
+    </button>
+    <button class="theme-btn" data-theme="wamo">
+      <span class="theme-swatch">
+        <span style="background:#1a1a2e"></span>
+        <span style="background:#c53d43"></span>
+        <span style="background:#f5f0e8"></span>
+      </span>
+      <span class="theme-label">和モダン</span>
+    </button>
+    <button class="theme-btn" data-theme="neon">
+      <span class="theme-swatch">
+        <span style="background:#0a0a1a"></span>
+        <span style="background:#ff6ec7"></span>
+        <span style="background:#00f5d4"></span>
+      </span>
+      <span class="theme-label">ネオン</span>
+    </button>
+    <button class="theme-btn" data-theme="typo">
+      <span class="theme-swatch">
+        <span style="background:#111"></span>
+        <span style="background:#fafafa;border:1px solid #ccc"></span>
+        <span style="background:#e00"></span>
+      </span>
+      <span class="theme-label">活版</span>
+    </button>
   </div>
 </div>
 
@@ -2077,6 +2176,8 @@ updateLobbyButtons();
   var current = localStorage.getItem('shiritori-theme') || 'default';
   var btns = document.querySelectorAll('.theme-btn');
   var cssLink = document.getElementById('themeCSS');
+  var toggle = document.getElementById('themeToggle');
+  var panel = document.getElementById('themePanel');
 
   function applyTheme(name) {
     document.documentElement.setAttribute('data-theme', name);
@@ -2091,11 +2192,26 @@ updateLobbyButtons();
     });
   }
 
+  // Init active state
   btns.forEach(function(b) {
     if (b.getAttribute('data-theme') === current) b.classList.add('active');
     b.addEventListener('click', function() {
       applyTheme(this.getAttribute('data-theme'));
+      panel.classList.remove('open');
     });
+  });
+
+  // Toggle panel
+  toggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    if (!panel.contains(e.target) && e.target !== toggle) {
+      panel.classList.remove('open');
+    }
   });
 })();
 

@@ -770,15 +770,31 @@
 }
 
 /* ── Theme Switcher for Wamo ── */
-[data-theme="wamo"] .theme-btn {
+[data-theme="wamo"] .theme-toggle {
   border-color: rgba(255,255,255,.25);
   background: rgba(255,255,255,.08);
 }
-[data-theme="wamo"] .theme-btn:hover {
+[data-theme="wamo"] .theme-toggle:hover {
   border-color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.15);
+}
+[data-theme="wamo"] .theme-panel {
+  background: #f5f0e8;
+  box-shadow: 0 8px 32px rgba(26,26,46,.2);
+}
+[data-theme="wamo"] .theme-panel::before {
+  background: #f5f0e8;
+}
+[data-theme="wamo"] .theme-panel-title {
+  color: #888;
+  border-bottom-color: #ddd5c8;
+}
+[data-theme="wamo"] .theme-btn {
+  color: #1a1a2e;
+}
+[data-theme="wamo"] .theme-btn:hover {
+  background: rgba(197,61,67,.08);
 }
 [data-theme="wamo"] .theme-btn.active {
-  border-color: #c53d43;
-  background: rgba(197,61,67,.15);
-  box-shadow: 0 0 6px rgba(197,61,67,.3);
+  background: rgba(197,61,67,.12);
 }
