@@ -1957,11 +1957,25 @@
         <div class="game-rules" id="gameRules"></div>
         <div class="game-header-actions">
           <button
+            class="share-btn share-btn-x"
+            style="padding: 0.3rem 0.6rem; font-size: 0.75rem"
+            onclick="shareRoomToX()"
+          >
+            <span class="share-icon">𝕏</span>
+          </button>
+          <button
+            class="share-btn share-btn-line"
+            style="padding: 0.3rem 0.6rem; font-size: 0.75rem"
+            onclick="shareRoomToLINE()"
+          >
+            <span class="share-icon">💬</span>
+          </button>
+          <button
             class="btn btn-outline"
             style="padding: 0.35rem 0.8rem; font-size: 0.8rem"
             onclick="copyRoomLink()"
           >
-            リンクをコピー
+            🔗 コピー
           </button>
           <button
             class="btn btn-outline"
@@ -1991,18 +2005,26 @@
         <div style="font-size: 0.85rem; margin-bottom: 0.6rem; opacity: 0.9">
           このルームはロビーに表示されません。リンクを共有して友達を招待しましょう！
         </div>
-        <button
-          class="btn"
-          style="
-            background: #fff;
-            color: var(--primary);
-            font-weight: 700;
-            padding: 0.4rem 1.2rem;
-          "
-          onclick="copyRoomLink()"
-        >
-          📎 招待リンクをコピー
-        </button>
+        <div class="share-buttons" style="margin-top: 0.3rem">
+          <button class="share-btn share-btn-x" onclick="shareRoomToX()">
+            <span class="share-icon">𝕏</span> ポスト
+          </button>
+          <button class="share-btn share-btn-line" onclick="shareRoomToLINE()">
+            <span class="share-icon">💬</span> LINE
+          </button>
+          <button
+            class="btn"
+            style="
+              background: #fff;
+              color: var(--primary);
+              font-weight: 700;
+              padding: 0.4rem 1.2rem;
+            "
+            onclick="copyRoomLink()"
+          >
+            📎 招待リンクをコピー
+          </button>
+        </div>
       </div>
 
       <!-- Pre-game / waiting -->
@@ -2380,6 +2402,24 @@
             ok ? "success" : "error",
           );
         });
+      }
+
+      function shareRoomToX() {
+        if (!currentRoomId) return;
+        const link = getRoomLink(currentRoomId);
+        const title = $('gameRoomTitle') ? $('gameRoomTitle').textContent : 'ルーム';
+        const text = `しりとりで遊ぼう！「${title}」に参加してね🎮\n`;
+        const url = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`;
+        window.open(url, '_blank', 'width=550,height=420');
+      }
+
+      function shareRoomToLINE() {
+        if (!currentRoomId) return;
+        const link = getRoomLink(currentRoomId);
+        const title = $('gameRoomTitle') ? $('gameRoomTitle').textContent : 'ルーム';
+        const text = `しりとりで遊ぼう！「${title}」に参加してね🎮\n${link}`;
+        const url = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank', 'width=550,height=420');
       }
 
       function showPrivateRoomBanner() {
