@@ -1987,46 +1987,6 @@
         </div>
       </div>
 
-      <!-- Private room invite banner -->
-      <div
-        id="privateRoomBanner"
-        class="card hidden"
-        style="
-          background: linear-gradient(135deg, var(--primary), var(--accent));
-          color: #fff;
-          text-align: center;
-          padding: 1rem 1.2rem;
-          margin-bottom: 0.7rem;
-        "
-      >
-        <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem">
-          🔒 プライベートルーム
-        </div>
-        <div style="font-size: 0.85rem; margin-bottom: 0.6rem; opacity: 0.9">
-          このルームはロビーに表示されません。リンクを共有して友達を招待しましょう！
-        </div>
-        <div class="share-buttons" style="margin-top: 0.3rem">
-          <button class="share-btn share-btn-x" onclick="shareRoomToX()">
-            <span class="share-icon">𝕏</span> ポスト
-          </button>
-          <button class="share-btn share-btn-line" onclick="shareRoomToLINE()">
-            <span class="share-icon">💬</span> LINE
-          </button>
-          <button
-            class="btn"
-            style="
-              background: #fff;
-              color: var(--primary);
-              font-weight: 700;
-              padding: 0.4rem 1.2rem;
-            "
-            onclick="copyRoomLink()"
-          >
-            📎 招待リンクをコピー
-          </button>
-        </div>
-      </div>
-
       <!-- Pre-game / waiting -->
       <div id="preGame" class="card start-area">
         <p class="waiting-text">プレイヤーを待っています…</p>
@@ -2422,15 +2382,6 @@
         window.open(url, '_blank', 'width=550,height=420');
       }
 
-      function showPrivateRoomBanner() {
-        const banner = $("privateRoomBanner");
-        if (banner) banner.classList.remove("hidden");
-      }
-
-      function hidePrivateRoomBanner() {
-        const banner = $("privateRoomBanner");
-        if (banner) banner.classList.add("hidden");
-      }
 
       function send(obj) {
         if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
@@ -2726,12 +2677,7 @@
         $("playAgainWait")?.classList.add("hidden");
         $("gameOver").classList.add("hidden");
         addMessage("ルームに参加しました", "info");
-        // Show prominent invite link for private rooms
-        if (currentSettings.private) {
-          showPrivateRoomBanner();
-        } else {
-          hidePrivateRoomBanner();
-        }
+
         if (inviteRoomId && inviteRoomId === currentRoomId) {
           clearInvite();
         }
@@ -3407,7 +3353,6 @@
       function leaveRoom() {
         send({ type: "leave_room" });
         currentRoomId = "";
-        hidePrivateRoomBanner();
         showView("lobby");
         refreshRooms();
         document.body.classList.toggle("invite-lobby", !!inviteRoomId);
