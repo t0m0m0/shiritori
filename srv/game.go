@@ -2,10 +2,22 @@ package srv
 
 import (
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"strings"
 	"sync"
+	"time"
+
 	"github.com/gorilla/websocket"
+)
+
+const (
+	// roomCleanupInterval is how often the cleanup goroutine checks for empty rooms.
+	roomCleanupInterval = 1 * time.Minute
+	// roomMaxEmptyAge is how long a room can stay empty before being removed.
+	roomMaxEmptyAge = 5 * time.Minute
+	// defaultMaxPlayers is the default maximum number of players per room.
+	defaultMaxPlayers = 8
 )
 
 // RoomSettings holds configuration for a game room.
@@ -18,6 +30,7 @@ type RoomSettings struct {
 	AllowedRows []string `json:"allowedRows,omitempty"` // e.g. ["あ行","か行"]; empty = all rows allowed
 	NoDakuten   bool     `json:"noDakuten,omitempty"`   // disallow dakuten/handakuten characters
 	MaxLives    int      `json:"maxLives"`              // max lives per player (default 3 if 0)
+	MaxPlayers  int      `json:"maxPlayers,omitempty"`   // max players per room (default 8 if 0)
 	Private     bool     `json:"private,omitempty"`      // if true, room is hidden from lobby list
 }
 
@@ -53,6 +66,9 @@ type Room struct {
 
 	// Callback for saving game result on game over (set by Server)
 	OnGameOver func(room *Room, result map[string]any) map[string]any
+
+	// EmptySince tracks when the room became empty; nil if room has players.
+	EmptySince *time.Time
 }
 
 
@@ -63,6 +79,8 @@ type RoomManager struct {
 	rooms map[string]*Room
 	// playerRoom tracks which room each player name is currently in.
 	playerRoom map[string]string // player name -> room ID
+	// done is used to stop the cleanup goroutine.
+	done chan struct{}
 }
 
 // NewRoomManager creates a new RoomManager.
@@ -70,6 +88,46 @@ func NewRoomManager() *RoomManager {
 	return &RoomManager{
 		rooms:      make(map[string]*Room),
 		playerRoom: make(map[string]string),
+		done:       make(chan struct{}),
+	}
+}
+
+// StartCleanup starts a background goroutine that periodically removes
+// rooms that have been empty for longer than maxEmptyAge.
+func (rm *RoomManager) StartCleanup(interval, maxEmptyAge time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-rm.done:
+				return
+			case <-ticker.C:
+				rm.cleanupEmptyRooms(maxEmptyAge)
+			}
+		}
+	}()
+}
+
+// StopCleanup stops the background cleanup goroutine.
+func (rm *RoomManager) StopCleanup() {
+	close(rm.done)
+}
+
+// cleanupEmptyRooms removes rooms that have been empty longer than maxAge.
+func (rm *RoomManager) cleanupEmptyRooms(maxAge time.Duration) {
+	now := time.Now()
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	for id, r := range rm.rooms {
+		r.mu.Lock()
+		if r.EmptySince != nil && now.Sub(*r.EmptySince) > maxAge {
+			r.mu.Unlock()
+			delete(rm.rooms, id)
+			slog.Info("room cleaned up (empty timeout)", "roomId", id)
+		} else {
+			r.mu.Unlock()
+		}
 	}
 }
 
@@ -135,10 +193,15 @@ func (rm *RoomManager) ListRooms() []RoomInfo {
 			r.mu.Unlock()
 			continue
 		}
+		maxP := r.Settings.MaxPlayers
+		if maxP <= 0 {
+			maxP = defaultMaxPlayers
+		}
 		info := RoomInfo{
 			ID:          r.ID,
 			Name:        r.Settings.Name,
 			PlayerCount: len(r.Players),
+			MaxPlayers:  maxP,
 			Status:      r.Status,
 			Genre:       r.Settings.Genre,
 			TimeLimit:   r.Settings.TimeLimit,
@@ -156,6 +219,7 @@ type RoomInfo struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
 	PlayerCount int          `json:"playerCount"`
+	MaxPlayers  int          `json:"maxPlayers"`
 	Status      string       `json:"status"`
 	Genre       string       `json:"genre"`
 	TimeLimit   int          `json:"timeLimit"`
@@ -163,11 +227,20 @@ type RoomInfo struct {
 	Settings    RoomSettings `json:"settings"`
 }
 
+// MaxPlayersLimit returns the effective max player limit for this room.
+func (r *Room) MaxPlayersLimit() int {
+	if r.Settings.MaxPlayers > 0 {
+		return r.Settings.MaxPlayers
+	}
+	return defaultMaxPlayers
+}
+
 // AddPlayer adds a player to the room.
 func (r *Room) AddPlayer(p *Player) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Players[p.Name] = p
+	r.EmptySince = nil
 
 	if r.Status == "playing" && r.Engine != nil {
 		r.Engine.AddPlayer(p.Name)
