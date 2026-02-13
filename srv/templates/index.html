@@ -169,6 +169,12 @@ input,select{font-family:inherit;font-size:1rem}
 #lobby .player-name-section input:focus{
   border-bottom-color:var(--primary);outline:none;
 }
+/* Extra elements for typo theme — hide in default */
+.player-name-desc{display:none}
+.player-name-label{display:none}
+.player-name-field{display:contents}
+.rules-panel{display:none}
+.create-room-layout{display:contents}
 .invite-card{
   display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;
   background:var(--surface);border-left:3px solid var(--primary);
@@ -619,6 +625,7 @@ input,select{font-family:inherit;font-size:1rem}
 
   <div id="lobbyCreateCard" class="card slide-up">
     <h2>ルームを作る</h2>
+    <div class="create-room-layout">
     <div id="roomCreateSettings">
       <div class="form-group">
         <label>ルーム名</label>
@@ -684,6 +691,18 @@ input,select{font-family:inherit;font-size:1rem}
         <span class="lobby-btn-tooltip">ユーザー名を入力してください</span>
       </div>
     </div>
+    <div class="rules-panel">
+      <table class="rules-table">
+        <tbody>
+          <tr><td>「ん」で終了</td><td class="rules-val rules-danger">失格</td></tr>
+          <tr><td>同じ単語</td><td class="rules-val">使用不可</td></tr>
+          <tr><td>制限時間超過</td><td class="rules-val">ライフ −1</td></tr>
+          <tr><td>ライフ 0</td><td class="rules-val rules-danger">敗北</td></tr>
+        </tbody>
+      </table>
+      <p class="rules-desc">最後まで生き残ったプレイヤーの勝利。言葉の知識と反射神経が試される。</p>
+    </div>
+    </div><!-- /.create-room-layout -->
   </div>
 
   <div id="inviteCard" class="card invite-card slide-up hidden" style="animation-delay:.05s">

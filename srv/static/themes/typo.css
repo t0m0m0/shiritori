@@ -227,6 +227,58 @@
   margin-bottom: 1.5rem;
 }
 
+/* Two-column layout: form left, rules right */
+[data-theme="typo"] .create-room-layout {
+  display: grid !important;
+  grid-template-columns: 3fr 2fr;
+  gap: 2.5rem;
+}
+
+/* Rules panel */
+[data-theme="typo"] .rules-panel {
+  display: block !important;
+  padding-top: 0.5rem;
+}
+
+[data-theme="typo"] .rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 300;
+}
+
+[data-theme="typo"] .rules-table td {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #eee;
+  color: #555;
+}
+
+[data-theme="typo"] .rules-table .rules-val {
+  text-align: right;
+  font-weight: 500;
+  color: #111;
+}
+
+[data-theme="typo"] .rules-table .rules-danger {
+  color: #e00;
+}
+
+[data-theme="typo"] .rules-desc {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 300;
+  color: #999;
+  line-height: 1.8;
+  margin-top: 1.2rem;
+}
+
+@media(max-width:700px) {
+  [data-theme="typo"] .create-room-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ==========================================================================
    §6  Forms — Underline Inputs
    ========================================================================== */
@@ -542,6 +594,7 @@
 
 /* Description text in left column */
 [data-theme="typo"] #lobby .player-name-desc {
+  display: block !important;
   grid-column: 1;
   grid-row: 3;
 }
@@ -557,13 +610,14 @@
 
 /* Right column: label + input */
 [data-theme="typo"] #lobby .player-name-field {
+  display: block !important;
   grid-column: 2;
   grid-row: 2 / 4;
   align-self: center;
 }
 
 [data-theme="typo"] #lobby .player-name-label {
-  display: block;
+  display: block !important;
   font-family: 'Zen Kaku Gothic New', sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
