@@ -142,6 +142,10 @@ input,select{font-family:inherit;font-size:1rem}
 }
 .invite-share .btn{padding:.4rem .9rem;font-size:.85rem}
 
+.invite-join-note{
+  font-size:.9rem;color:var(--text2);margin-top:.35rem;
+}
+
 /* ── Game Room ── */
 #game{position:relative}
 .game-header{
@@ -448,7 +452,13 @@ input,select{font-family:inherit;font-size:1rem}
     <input type="text" id="playerName" placeholder="ユーザー名" maxlength="12" autocomplete="off">
   </div>
 
-  <div class="card slide-up">
+  <div id="inviteJoinPanel" class="card hidden">
+    <h2>招待ルームに参加</h2>
+    <p>ルームID：<strong id="inviteJoinRoomId">----</strong></p>
+    <button id="inviteJoinBtn" class="btn btn-primary btn-block" onclick="joinInviteRoom()">このルームに参加</button>
+  </div>
+
+  <div id="lobbyCreateCard" class="card slide-up">
     <h2>ルームを作る</h2>
     <div class="form-group">
       <label>ルーム名</label>
@@ -510,7 +520,7 @@ input,select{font-family:inherit;font-size:1rem}
     <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
   </div>
 
-  <div class="card slide-up" style="animation-delay:.1s">
+  <div id="lobbyRoomsCard" class="card slide-up" style="animation-delay:.1s">
     <h2>ルーム一覧 <button class="btn btn-outline" style="margin-left:auto;padding:.3rem .8rem;font-size:.8rem" onclick="refreshRooms()">更新</button></h2>
     <ul id="roomList" class="room-list"></ul>
     <div id="noRooms" class="no-rooms">現在アクティブなルームはありません</div>
@@ -784,28 +794,37 @@ function parseRoomFromUrl() {
   return (params.get('room') || '').trim();
 }
 
-function showInviteNotice() {
-  if (!pendingRoomId) return;
-  $('noRooms')?.insertAdjacentHTML('afterend',
-    `<div class="invite-banner" id="inviteNotice">
-      🔗 ルームID「${esc(pendingRoomId)}」に参加できます。名前を入力してください。
-    </div>`);
-}
-
-function clearInviteNotice() {
-  $('inviteNotice')?.remove();
+function updateInviteJoinPanel() {
+  const panel = $('inviteJoinPanel');
+  if (!panel) return;
+  const showInvite = !!pendingRoomId;
+  if (!showInvite) {
+    panel.classList.add('hidden');
+  } else {
+    $('inviteJoinRoomId').textContent = pendingRoomId;
+    panel.classList.remove('hidden');
+  }
+  $('lobbyCreateCard')?.classList.toggle('hidden', showInvite);
+  $('lobbyRoomsCard')?.classList.toggle('hidden', showInvite);
 }
 
 function attemptAutoJoin() {
   const roomId = parseRoomFromUrl();
   if (!roomId) return;
   pendingRoomId = roomId;
-  showInviteNotice();
+  updateInviteJoinPanel();
   if ($('playerName').value.trim()) {
     joinRoom(roomId);
     pendingRoomId = '';
-    clearInviteNotice();
+    updateInviteJoinPanel();
   }
+}
+
+function joinInviteRoom() {
+  if (!pendingRoomId) return;
+  joinRoom(pendingRoomId);
+  pendingRoomId = '';
+  updateInviteJoinPanel();
 }
 
 function createRoom() {
@@ -1145,7 +1164,7 @@ function leaveRoom() {
   updateInviteLink();
   showView('lobby');
   refreshRooms();
-  if (pendingRoomId) showInviteNotice();
+  updateInviteJoinPanel();
 }
 
 /* ========== MESSAGES ========== */
@@ -1297,7 +1316,7 @@ document.addEventListener('keydown', e => {
     if (pendingRoomId) {
       joinRoom(pendingRoomId);
       pendingRoomId = '';
-      clearInviteNotice();
+      updateInviteJoinPanel();
     }
   }
 });
@@ -1306,7 +1325,7 @@ $('playerName')?.addEventListener('input', () => {
   if (pendingRoomId && $('playerName').value.trim()) {
     joinRoom(pendingRoomId);
     pendingRoomId = '';
-    clearInviteNotice();
+    updateInviteJoinPanel();
   }
 });
 
@@ -1319,6 +1338,7 @@ setInterval(() => {
 
 // Pre-fill room invite if URL has ?room=
 pendingRoomId = parseRoomFromUrl();
+updateInviteJoinPanel();
 </script>
 </body>
 </html>
