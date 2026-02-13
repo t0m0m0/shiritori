@@ -2052,6 +2052,8 @@
             id="answerInput"
             placeholder="ことばを入力…"
             autocomplete="off"
+            lang="ja"
+            style="ime-mode: active;"
           />
           <button class="btn btn-primary" onclick="submitAnswer()">送信</button>
           <button
@@ -3733,6 +3735,63 @@
           return;
         }
       });
+
+      /* ========== HIRAGANA-ONLY INPUT FILTER ========== */
+      (function () {
+        // Convert katakana to hiragana
+        function katakanaToHiragana(str) {
+          return str.replace(/[\u30A1-\u30F6]/g, function (ch) {
+            return String.fromCharCode(ch.charCodeAt(0) - 0x60);
+          });
+        }
+        // Check if a character is allowed: hiragana, katakana, or long vowel mark
+        function isAllowedChar(ch) {
+          var code = ch.charCodeAt(0);
+          // Hiragana: U+3040-U+309F
+          if (code >= 0x3040 && code <= 0x309f) return true;
+          // Katakana: U+30A0-U+30FF
+          if (code >= 0x30a0 && code <= 0x30ff) return true;
+          // Long vowel mark
+          if (ch === "\u30FC") return true;
+          return false;
+        }
+        // Filter and convert input value
+        function filterInput(input) {
+          var pos = input.selectionStart;
+          var original = input.value;
+          // Keep only allowed characters
+          var filtered = "";
+          for (var i = 0; i < original.length; i++) {
+            if (isAllowedChar(original[i])) filtered += original[i];
+          }
+          // Convert katakana to hiragana
+          var converted = katakanaToHiragana(filtered);
+          if (converted !== original) {
+            var diff = original.length - converted.length;
+            input.value = converted;
+            // Adjust cursor position
+            var newPos = Math.max(0, pos - diff);
+            input.setSelectionRange(newPos, newPos);
+          }
+        }
+
+        var answerInput = $("answerInput");
+        if (answerInput) {
+          var isComposing = false;
+          answerInput.addEventListener("compositionstart", function () {
+            isComposing = true;
+          });
+          answerInput.addEventListener("compositionend", function () {
+            isComposing = false;
+            filterInput(answerInput);
+          });
+          answerInput.addEventListener("input", function () {
+            if (!isComposing) {
+              filterInput(answerInput);
+            }
+          });
+        }
+      })();
 
       /* ========== INIT ========== */
       connect();
