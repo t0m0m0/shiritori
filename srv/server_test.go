@@ -166,23 +166,6 @@ func TestRoomManager(t *testing.T) {
 	}
 }
 
-func TestGenreValidation(t *testing.T) {
-	// No genre - anything goes
-	if !isWordInGenre("あいうえお", "") {
-		t.Error("expected any word to pass with no genre")
-	}
-
-	// Food genre with known word
-	if !isWordInGenre("りんご", "食べ物") {
-		t.Error("expected りんご to be in food genre")
-	}
-
-	// Food genre with non-food word
-	if isWordInGenre("いぬ", "食べ物") {
-		t.Error("expected いぬ to not be in food genre")
-	}
-}
-
 func TestGetKanaRow(t *testing.T) {
 	tests := []struct {
 		char     rune

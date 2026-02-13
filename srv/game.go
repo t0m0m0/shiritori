@@ -498,26 +498,6 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		}
 	}
 
-	// Genre check — if fails, start a vote (only in multiplayer)
-	if !isWordInGenre(hiragana, r.Settings.Genre) {
-		// Solo play: no vote possible, just reject
-		if len(r.Players) <= 1 {
-			return ValidateRejected, fmt.Sprintf("ジャンル「%s」の言葉を入力してください", r.Settings.Genre)
-		}
-		// Start a vote
-		r.pendingVote = &PendingVote{
-			Word:     word,
-			Hiragana: hiragana,
-			Player:   playerName,
-			Votes:    make(map[string]bool),
-			Type:     "genre",
-			Reason:   fmt.Sprintf("「%s」はジャンル「%s」のリストにありません", word, r.Settings.Genre),
-		}
-		// Submitter's vote automatically counts as accept
-		r.pendingVote.Votes[playerName] = true
-		return ValidateVote, fmt.Sprintf("「%s」はジャンル「%s」のリストにありません。投票で判定します", word, r.Settings.Genre)
-	}
-
 	// All good — apply the word
 	r.applyWordLocked(word, hiragana, playerName)
 	return ValidateOK, ""

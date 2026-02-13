@@ -34,7 +34,6 @@ type WSMessage struct {
 	Success bool       `json:"success,omitempty"`
 	Message string     `json:"message,omitempty"`
 	Rooms   []RoomInfo `json:"rooms,omitempty"`
-	Genres  []string   `json:"genres,omitempty"`
 }
 
 // mustMarshal marshals v to JSON or panics.
@@ -160,7 +159,6 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 		case "get_genres":
 			sendMsg(map[string]any{
 				"type":     "genres",
-				"genres":   getGenreList(),
 				"kanaRows": GetKanaRowNames(),
 			})
 

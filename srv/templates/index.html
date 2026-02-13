@@ -622,12 +622,8 @@ input,select{font-family:inherit;font-size:1rem}
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>ジャンル</label>
-          <select id="genre">
-            <option value="">なし</option>
-            <option value="食べ物">🍔 食べ物</option>
-            <option value="動物">🐾 動物</option>
-          </select>
+          <label>ジャンル（自由入力）</label>
+          <input type="text" id="genre" placeholder="例: 食べ物、動物、国名..." maxlength="20">
         </div>
         <div class="form-group">
           <label>制限時間</label>
