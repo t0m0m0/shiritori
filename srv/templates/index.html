@@ -1213,7 +1213,7 @@ function updateTurnDisplay() {
   }
   const challengeBtn = $('challengeBtn');
   if (challengeBtn) {
-    const canChallenge = $('currentWord').textContent !== '―' && !isVoteActive && lastWordPlayer !== myName && !isMyTurn;
+    const canChallenge = $('currentWord').textContent !== '―' && !isVoteActive && lastWordPlayer !== myName;
     challengeBtn.disabled = !canChallenge;
   }
 }
@@ -1715,10 +1715,6 @@ function requestChallenge() {
   if (isVoteActive) return;
   if (lastWordPlayer === myName) {
     addMessage('自分の単語には指摘できません', 'error');
-    return;
-  }
-  if (currentTurn === myName) {
-    addMessage('自分の手番では指摘できません', 'error');
     return;
   }
   send({ type: 'challenge' });
