@@ -18,8 +18,8 @@ type RoomSettings struct {
 	Genre       string   `json:"genre"`
 	TimeLimit   int      `json:"timeLimit"`
 	AllowedRows []string `json:"allowedRows,omitempty"` // e.g. ["あ行","か行"]; empty = all rows allowed
-	NoDakuten   bool     `json:"noDakuten,omitempty"`    // disallow dakuten/handakuten characters
-	MaxLives    int      `json:"maxLives"`               // max lives per player (default 3 if 0)
+	NoDakuten   bool     `json:"noDakuten,omitempty"`   // disallow dakuten/handakuten characters
+	MaxLives    int      `json:"maxLives"`              // max lives per player (default 3 if 0)
 }
 
 // WordEntry records a word played in the game.
@@ -41,18 +41,18 @@ type Player struct {
 // Room holds the state for a single game room.
 type Room struct {
 	mu          sync.Mutex
-	ID          string        `json:"id"`
-	Owner       string        `json:"owner"`
-	Settings    RoomSettings  `json:"settings"`
+	ID          string       `json:"id"`
+	Owner       string       `json:"owner"`
+	Settings    RoomSettings `json:"settings"`
 	Players     map[string]*Player
-	History     []WordEntry   `json:"history"`
-	CurrentWord string        `json:"currentWord"`
-	Status      string        `json:"status"` // "waiting", "playing", "finished"
+	History     []WordEntry `json:"history"`
+	CurrentWord string      `json:"currentWord"`
+	Status      string      `json:"status"` // "waiting", "playing", "finished"
 	UsedWords   map[string]bool
 
 	// Turn management
-	TurnOrder   []string // player names in order
-	TurnIndex   int      // index into TurnOrder for current turn
+	TurnOrder []string // player names in order
+	TurnIndex int      // index into TurnOrder for current turn
 
 	timerCancel chan struct{}
 	timerLeft   int
@@ -66,15 +66,39 @@ type PendingVote struct {
 	Word       string
 	Hiragana   string
 	Player     string
+	Challenger string
 	Votes      map[string]bool // player name -> accept (true) / reject (false)
+	Type       string          // "genre" or "challenge"
+	Reason     string
 	Timer      *time.Timer
 	Resolved   bool
 }
 
+// VoteResolution is the outcome of a vote.
+type VoteResolution struct {
+	Type       string
+	Word       string
+	Player     string
+	Challenger string
+	Accepted   bool
+	Reverted   bool
+}
+
+// VoteInfo describes a new vote request.
+type VoteInfo struct {
+	Type       string
+	Word       string
+	Player     string
+	Challenger string
+	Reason     string
+	VoteCount  int
+	Total      int
+}
+
 // RoomManager manages all active rooms.
 type RoomManager struct {
-	mu      sync.RWMutex
-	rooms   map[string]*Room
+	mu    sync.RWMutex
+	rooms map[string]*Room
 	// playerRoom tracks which room each player name is currently in.
 	playerRoom map[string]string // player name -> room ID
 }
@@ -328,8 +352,8 @@ func (r *Room) runTimer() {
 				return
 			}
 			msg := mustMarshal(map[string]any{
-				"type":      "timer",
-				"timeLeft":  left,
+				"type":     "timer",
+				"timeLeft": left,
 			})
 			r.broadcastLocked(msg)
 			r.mu.Unlock()
@@ -349,9 +373,9 @@ type ValidateResult int
 
 const (
 	ValidateOK       ValidateResult = iota // Word accepted
-	ValidateRejected                        // Word rejected (hard fail)
-	ValidateVote                            // Need genre vote
-	ValidatePenalty                         // Word accepted but player loses a life
+	ValidateRejected                       // Word rejected (hard fail)
+	ValidateVote                           // Need genre vote
+	ValidatePenalty                        // Word accepted but player loses a life
 )
 
 // ValidateAndSubmitWord checks a word and applies it if valid.
@@ -448,6 +472,8 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 			Hiragana: hiragana,
 			Player:   playerName,
 			Votes:    make(map[string]bool),
+			Type:     "genre",
+			Reason:   fmt.Sprintf("「%s」はジャンル「%s」のリストにありません", word, r.Settings.Genre),
 		}
 		// Submitter's vote automatically counts as accept
 		r.pendingVote.Votes[playerName] = true
@@ -557,60 +583,43 @@ func (r *Room) GetLives() map[string]int {
 	return r.getLivesLocked()
 }
 
-// CastVote records a player's vote and returns (allVoted, accepted).
-// accepted is only meaningful when allVoted is true.
-func (r *Room) CastVote(playerName string, accept bool) (allVoted bool, accepted bool) {
+// CastVote records a player's vote and returns resolution if complete.
+func (r *Room) CastVote(playerName string, accept bool) (resolved bool, result VoteResolution) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if r.pendingVote == nil || r.pendingVote.Resolved {
-		return false, false
+		return false, VoteResolution{}
 	}
 
 	// Only players in the room can vote
 	if _, ok := r.Players[playerName]; !ok {
-		return false, false
+		return false, VoteResolution{}
 	}
 
 	r.pendingVote.Votes[playerName] = accept
 
 	// Check if all players have voted
 	if len(r.pendingVote.Votes) < len(r.Players) {
-		return false, false
+		return false, VoteResolution{}
 	}
 
-	// All voted — tally
-	r.pendingVote.Resolved = true
-	acceptCount := 0
-	rejectCount := 0
-	for _, v := range r.pendingVote.Votes {
-		if v {
-			acceptCount++
-		} else {
-			rejectCount++
-		}
-	}
-
-	accepted = acceptCount > rejectCount
-	if accepted {
-		r.applyWordLocked(r.pendingVote.Word, r.pendingVote.Hiragana, r.pendingVote.Player)
-	} else {
-		// Vote rejected — clear pending vote, player keeps their turn
-		r.pendingVote = nil
-	}
-
-	return true, accepted
+	return r.resolveVoteLocked()
 }
 
 // ForceResolveVote resolves the vote by timeout (majority wins, tie = reject).
-func (r *Room) ForceResolveVote() (resolved bool, accepted bool) {
+func (r *Room) ForceResolveVote() (resolved bool, result VoteResolution) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if r.pendingVote == nil || r.pendingVote.Resolved {
-		return false, false
+		return false, VoteResolution{}
 	}
 
+	return r.resolveVoteLocked()
+}
+
+func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 	r.pendingVote.Resolved = true
 	acceptCount := 0
 	rejectCount := 0
@@ -624,14 +633,114 @@ func (r *Room) ForceResolveVote() (resolved bool, accepted bool) {
 	// Non-voters count as reject
 	rejectCount += len(r.Players) - len(r.pendingVote.Votes)
 
-	accepted = acceptCount > rejectCount
-	if accepted {
-		r.applyWordLocked(r.pendingVote.Word, r.pendingVote.Hiragana, r.pendingVote.Player)
-	} else {
-		r.pendingVote = nil
+	accepted := acceptCount > rejectCount
+	result = VoteResolution{
+		Type:       r.pendingVote.Type,
+		Word:       r.pendingVote.Word,
+		Player:     r.pendingVote.Player,
+		Challenger: r.pendingVote.Challenger,
+		Accepted:   accepted,
 	}
 
-	return true, accepted
+	if r.pendingVote.Type == "genre" {
+		if accepted {
+			r.applyWordLocked(r.pendingVote.Word, r.pendingVote.Hiragana, r.pendingVote.Player)
+		} else {
+			// Vote rejected — clear pending vote, player keeps their turn
+			r.pendingVote = nil
+		}
+		return true, result
+	}
+
+	// Challenge vote: accepted = word stays; rejected = word removed, challenger plays.
+	if accepted {
+		r.pendingVote = nil
+		return true, result
+	}
+
+	// Revert last word and hand turn to challenger.
+	if len(r.History) > 0 {
+		r.History = r.History[:len(r.History)-1]
+	}
+	delete(r.UsedWords, r.pendingVote.Hiragana)
+	prevWord := ""
+	if len(r.History) > 0 {
+		prevWord = r.History[len(r.History)-1].Word
+	}
+	challengerIndex := -1
+	for i, name := range r.TurnOrder {
+		if name == r.pendingVote.Challenger {
+			challengerIndex = i
+			break
+		}
+	}
+	if challengerIndex >= 0 {
+		r.TurnIndex = challengerIndex
+	}
+	result.Reverted = true
+	result.Player = r.pendingVote.Player
+	result.Challenger = r.pendingVote.Challenger
+	result.Word = r.pendingVote.Word
+	result.Accepted = false
+
+	// Restore current word to previous
+	r.CurrentWord = prevWord
+	// Reset timer
+	r.resetTimer()
+
+	r.pendingVote = nil
+	return true, result
+}
+
+// StartChallengeVote starts a vote to challenge a word.
+func (r *Room) StartChallengeVote(challengerName string) (VoteInfo, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.Status != "playing" {
+		return VoteInfo{}, fmt.Errorf("ゲームが開始されていません")
+	}
+	if r.pendingVote != nil && !r.pendingVote.Resolved {
+		return VoteInfo{}, fmt.Errorf("投票中です。投票が終わるまでお待ちください")
+	}
+	if len(r.History) == 0 {
+		return VoteInfo{}, fmt.Errorf("まだ単語がありません")
+	}
+	if _, ok := r.Players[challengerName]; !ok {
+		return VoteInfo{}, fmt.Errorf("ルームに参加していません")
+	}
+	last := r.History[len(r.History)-1]
+	if last.Player == challengerName {
+		return VoteInfo{}, fmt.Errorf("自分の単語には指摘できません")
+	}
+	if r.TurnOrder[r.TurnIndex] == challengerName {
+		return VoteInfo{}, fmt.Errorf("自分の番では指摘できません")
+	}
+	hiragana := toHiragana(last.Word)
+
+	r.pendingVote = &PendingVote{
+		Word:       last.Word,
+		Hiragana:   hiragana,
+		Player:     last.Player,
+		Challenger: challengerName,
+		Votes:      make(map[string]bool),
+		Type:       "challenge",
+		Reason:     fmt.Sprintf("「%s」は存在しない単語かもしれません", last.Word),
+	}
+
+	// Challenger auto-votes reject (word should be removed)
+	r.pendingVote.Votes[challengerName] = false
+
+	info := VoteInfo{
+		Type:       "challenge",
+		Word:       last.Word,
+		Player:     last.Player,
+		Challenger: challengerName,
+		Reason:     r.pendingVote.Reason,
+		VoteCount:  len(r.pendingVote.Votes),
+		Total:      len(r.Players),
+	}
+	return info, nil
 }
 
 // getScoresLocked returns a map of player scores. Caller must hold r.mu.

@@ -162,7 +162,7 @@ input,select{font-family:inherit;font-size:1rem}
 
 /* Answer input */
 .answer-area{
-  display:flex;gap:.5rem;margin-bottom:1rem;
+  display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;
 }
 .answer-area input{
   flex:1;padding:.8rem 1rem;border:2px solid #e5e7eb;border-radius:8px;
@@ -170,6 +170,7 @@ input,select{font-family:inherit;font-size:1rem}
 }
 .answer-area input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.15)}
 .answer-area .btn{padding:.8rem 1.5rem;font-size:1.1rem;min-width:80px}
+#challengeBtn{white-space:nowrap}
 
 /* Game layout */
 .game-body{display:grid;grid-template-columns:1fr 260px;gap:1rem}
@@ -541,6 +542,7 @@ input,select{font-family:inherit;font-size:1rem}
     <div class="answer-area">
       <input type="text" id="answerInput" placeholder="ことばを入力…" autocomplete="off">
       <button class="btn btn-primary" onclick="submitAnswer()">送信</button>
+      <button class="btn btn-outline" id="challengeBtn" onclick="requestChallenge()">⚠️ 指摘</button>
     </div>
 
     <div class="game-body">
@@ -565,7 +567,7 @@ input,select{font-family:inherit;font-size:1rem}
 <!-- ═══ VOTE OVERLAY ═══ -->
 <div id="voteOverlay" class="vote-overlay hidden">
   <div class="vote-card">
-    <h3>🗳️ ジャンル投票</h3>
+    <h3 id="voteTitle">🗳️ 投票</h3>
     <p class="vote-question" id="voteQuestion"></p>
     <div class="vote-word" id="voteWord"></div>
     <p class="vote-question" id="voteGenreHint"></p>
@@ -608,6 +610,7 @@ let roomOwner = '';
 let waitingPlayers = [];
 let voteTimerInterval = null;
 let hasVoted = false;
+let isVoteActive = false;
 let kanaRowNames = [];
 let currentLives = {};
 let maxLives = 3;
@@ -769,6 +772,7 @@ function onJoined(msg) {
   // Extract player names from players array
   waitingPlayers = (msg.players || []).map(p => typeof p === 'object' ? p.name : p);
   updateWaitingRoom();
+  isVoteActive = false;
   updateMyLives();
   if (msg.currentWord && msg.status === 'playing') {
     showActiveGame(true);
@@ -852,6 +856,11 @@ function updateTurnDisplay() {
       : `${currentTurn}さんの番です…`;
     if (isMyTurn) input.focus();
   }
+  const challengeBtn = $('challengeBtn');
+  if (challengeBtn) {
+    const canChallenge = !isMyTurn && $('currentWord').textContent !== '―' && !isVoteActive;
+    challengeBtn.disabled = !canChallenge;
+  }
 }
 
 function setCurrentWord(word) {
@@ -920,6 +929,7 @@ function onGameStarted(msg) {
   if (msg.currentTurn) currentTurn = msg.currentTurn;
   if (msg.lives) currentLives = msg.lives;
   if (msg.maxLives) maxLives = msg.maxLives;
+  isVoteActive = false;
   updateMyLives();
   updateTurnDisplay();
   // Initialize timer display
@@ -1098,12 +1108,26 @@ function showScorePopup(player) {
 
 /* ========== VOTE ========== */
 function onVoteRequest(msg) {
-  hasVoted = (msg.player === myName); // submitter auto-voted accept
+  const isGenre = msg.voteType === 'genre';
+  const isChallenge = msg.voteType === 'challenge';
+  if (isChallenge) {
+    hasVoted = (msg.challenger === myName); // challenger auto-voted reject
+  } else {
+    hasVoted = (msg.player === myName); // submitter auto-voted accept
+  }
+  $('voteTitle').textContent = isChallenge ? '🗳️ 単語指摘の投票' : '🗳️ ジャンル投票';
   $('voteWord').textContent = msg.word;
-  $('voteQuestion').textContent = `${msg.player}さんが「${msg.word}」を入力しました`;
-  $('voteGenreHint').textContent = `ジャンル「${msg.genre}」のリストにない単語です。認めますか？`;
+  if (isChallenge) {
+    $('voteQuestion').textContent = `${msg.challenger}さんが「${msg.word}」を指摘しました`;
+    $('voteGenreHint').textContent = msg.reason || 'この単語を認めますか？';
+  } else {
+    $('voteQuestion').textContent = `${msg.player}さんが「${msg.word}」を入力しました`;
+    $('voteGenreHint').textContent = `ジャンル「${msg.genre}」のリストにない単語です。認めますか？`;
+  }
   updateVoteProgress(msg.voteCount || 0, msg.totalPlayers || 0);
+  isVoteActive = true;
   $('voteOverlay').classList.remove('hidden');
+  updateTurnDisplay();
 
   if (hasVoted) {
     $('voteButtonArea').classList.add('hidden');
@@ -1140,12 +1164,25 @@ function updateVoteProgress(count, total) {
 
 function onVoteResult(msg) {
   clearInterval(voteTimerInterval);
+  isVoteActive = false;
   $('voteOverlay').classList.add('hidden');
   if (msg.accepted) {
     addMessage(msg.message || `投票により「${msg.word}」が承認されました`, 'success');
   } else {
     addMessage(msg.message || `投票により「${msg.word}」は却下されました`, 'error');
+    if (msg.reverted) {
+      if (msg.currentWord !== undefined) setCurrentWord(msg.currentWord || '');
+      if (msg.history) {
+        $('historyList').innerHTML = '';
+        (msg.history || []).forEach(h => addHistoryItem(h.word, h.player));
+      }
+      if (msg.scores || msg.lives) updateScoresAndLives(msg.scores, msg.lives);
+      if (msg.currentTurn) currentTurn = msg.currentTurn;
+      updateMyLives();
+      updateTurnDisplay();
+    }
   }
+  updateTurnDisplay();
 }
 
 function castVote(accept) {
@@ -1228,3 +1265,12 @@ setInterval(() => {
 </body>
 </html>
 
+
+function requestChallenge() {
+  if (isVoteActive) return;
+  if (currentTurn === myName) {
+    addMessage('自分の番では指摘できません', 'error');
+    return;
+  }
+  send({ type: 'challenge' });
+}
