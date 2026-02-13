@@ -13,41 +13,10 @@ var smallToNormalKana = map[rune]rune{
 	'ゎ': 'わ',
 }
 
-// vowelForHiragana returns the vowel row character for a given hiragana.
-// Used to resolve ー (long vowel mark).
-var vowelForHiragana = map[rune]rune{
-	// a-row
-	'あ': 'あ', 'か': 'あ', 'さ': 'あ', 'た': 'あ', 'な': 'あ',
-	'は': 'あ', 'ま': 'あ', 'や': 'あ', 'ら': 'あ', 'わ': 'あ',
-	'が': 'あ', 'ざ': 'あ', 'だ': 'あ', 'ば': 'あ', 'ぱ': 'あ',
-	// i-row
-	'い': 'い', 'き': 'い', 'し': 'い', 'ち': 'い', 'に': 'い',
-	'ひ': 'い', 'み': 'い', 'り': 'い', 'ゐ': 'い',
-	'ぎ': 'い', 'じ': 'い', 'ぢ': 'い', 'び': 'い', 'ぴ': 'い',
-	// u-row
-	'う': 'う', 'く': 'う', 'す': 'う', 'つ': 'う', 'ぬ': 'う',
-	'ふ': 'う', 'む': 'う', 'ゆ': 'う', 'る': 'う',
-	'ぐ': 'う', 'ず': 'う', 'づ': 'う', 'ぶ': 'う', 'ぷ': 'う',
-	// e-row
-	'え': 'え', 'け': 'え', 'せ': 'え', 'て': 'え', 'ね': 'え',
-	'へ': 'え', 'め': 'え', 'れ': 'え', 'ゑ': 'え',
-	'げ': 'え', 'ぜ': 'え', 'で': 'え', 'べ': 'え', 'ぺ': 'え',
-	// o-row
-	'お': 'お', 'こ': 'お', 'そ': 'お', 'と': 'お', 'の': 'お',
-	'ほ': 'お', 'も': 'お', 'よ': 'お', 'ろ': 'お', 'を': 'お',
-	'ご': 'お', 'ぞ': 'お', 'ど': 'お', 'ぼ': 'お', 'ぽ': 'お',
-	// n
-	'ん': 'ん',
-}
-
 // katakanaToHiragana converts a single katakana rune to hiragana.
 // If the rune is not katakana, it is returned unchanged.
 func katakanaToHiragana(r rune) rune {
-	// Katakana range: 0x30A0-0x30FF, Hiragana: 0x3040-0x309F
-	if r >= 0x30A1 && r <= 0x30F6 {
-		return r - 0x60
-	}
-	// Small katakana
+	// Katakana range: 0x30A1 (ァ) – 0x30FA (ヺ) → Hiragana 0x3041–0x309A
 	if r >= 0x30A1 && r <= 0x30FA {
 		return r - 0x60
 	}
@@ -73,11 +42,6 @@ func isHiragana(r rune) bool {
 // isKatakana checks if a rune is katakana.
 func isKatakana(r rune) bool {
 	return r >= 0x30A0 && r <= 0x30FF
-}
-
-// isKanji checks if a rune is a CJK Unified Ideograph (common kanji range).
-func isKanji(r rune) bool {
-	return r >= 0x4E00 && r <= 0x9FFF
 }
 
 // isLongVowelMark checks if a rune is ー.
