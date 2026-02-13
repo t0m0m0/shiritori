@@ -222,32 +222,32 @@ func (r *Room) broadcastLocked(msg []byte) {
 	}
 }
 
-// StartGame begins the game by picking a random starter word.
-func (r *Room) StartGame() (string, error) {
+// StartGame begins the game. The room owner goes first and picks any word.
+func (r *Room) StartGame() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if r.Status == "playing" {
-		return "", fmt.Errorf("game already in progress")
+		return fmt.Errorf("game already in progress")
 	}
 	if len(r.Players) < 1 {
-		return "", fmt.Errorf("need at least 1 player")
+		return fmt.Errorf("need at least 1 player")
 	}
 
-	// Pick random starter word
-	word := starterWords[rand.IntN(len(starterWords))]
-
 	r.Status = "playing"
-	r.CurrentWord = word
+	r.CurrentWord = "" // owner picks the first word
 
-	// Shuffle turn order
+	// Build turn order with owner first, rest shuffled
 	r.TurnOrder = make([]string, 0, len(r.Players))
 	for name := range r.Players {
-		r.TurnOrder = append(r.TurnOrder, name)
+		if name != r.Owner {
+			r.TurnOrder = append(r.TurnOrder, name)
+		}
 	}
 	rand.Shuffle(len(r.TurnOrder), func(i, j int) {
 		r.TurnOrder[i], r.TurnOrder[j] = r.TurnOrder[j], r.TurnOrder[i]
 	})
+	r.TurnOrder = append([]string{r.Owner}, r.TurnOrder...)
 	r.TurnIndex = 0
 
 	// Reset scores
@@ -255,14 +255,8 @@ func (r *Room) StartGame() (string, error) {
 		p.Score = 0
 	}
 
-	r.History = []WordEntry{{
-		Word:   word,
-		Player: "システム",
-		Time:   time.Now().Format(time.RFC3339),
-	}}
-	r.UsedWords = map[string]bool{
-		toHiragana(word): true,
-	}
+	r.History = []WordEntry{}
+	r.UsedWords = make(map[string]bool)
 
 	// Start timer if applicable
 	if r.Settings.TimeLimit > 0 {
@@ -271,7 +265,7 @@ func (r *Room) StartGame() (string, error) {
 		go r.runTimer()
 	}
 
-	return word, nil
+	return nil
 }
 
 // runTimer runs the countdown timer in a goroutine.
@@ -376,13 +370,15 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		return ValidateRejected, "「ん」で終わる言葉は使えません"
 	}
 
-	// Check first char matches last char of current word
-	prevHiragana := toHiragana(r.CurrentWord)
-	lastChar := getLastChar(prevHiragana)
-	firstChar := getFirstChar(hiragana)
+	// Check first char matches last char of current word (skip for first word)
+	if r.CurrentWord != "" {
+		prevHiragana := toHiragana(r.CurrentWord)
+		lastChar := getLastChar(prevHiragana)
+		firstChar := getFirstChar(hiragana)
 
-	if lastChar != firstChar {
-		return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
+		if lastChar != firstChar {
+			return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
+		}
 	}
 
 	// Check not already used

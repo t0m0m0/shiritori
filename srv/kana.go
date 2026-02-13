@@ -5,15 +5,6 @@ import (
 	"unicode/utf8"
 )
 
-// starterWords are common Japanese words used to start a game.
-var starterWords = []string{
-	"しりとり", "さくら", "たまご",
-	"やきにく", "からおけ", "すいか", "はなび",
-	"とまと", "ひまわり", "くるま",
-	"うさぎ", "かめ", "あさひ", "つくえ", "ねこ",
-	"いちご", "まくら", "そら", "かぜ", "やま",
-}
-
 // smallToNormalKana maps small kana to their normal-sized equivalents.
 var smallToNormalKana = map[rune]rune{
 	'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ',

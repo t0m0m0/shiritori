@@ -293,14 +293,11 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Roo
 }
 
 func (s *Server) handleStartGame(room *Room) {
-	word, err := room.StartGame()
+	err := room.StartGame()
 	if err != nil {
 		slog.Warn("start game failed", "error", err)
 		return
 	}
-
-	hiragana := toHiragana(word)
-	nextChar := getLastChar(hiragana)
 
 	room.mu.Lock()
 	currentTurn := ""
@@ -313,9 +310,9 @@ func (s *Server) handleStartGame(room *Room) {
 
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "game_started",
-		"currentWord": word,
-		"nextChar":    string(nextChar),
-		"history":     room.History,
+		"currentWord": "",
+		"nextChar":    "",
+		"history":     []WordEntry{},
 		"timeLimit":   room.Settings.TimeLimit,
 		"currentTurn": currentTurn,
 		"turnOrder":   turnOrder,

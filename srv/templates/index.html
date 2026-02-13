@@ -152,9 +152,9 @@ input,select{font-family:inherit;font-size:1rem}
 .next-char-label{font-size:.8rem;color:var(--text2)}
 .next-char{
   display:inline-block;font-size:2rem;font-weight:900;
-  color:#fff;background:var(--primary);width:3.2rem;height:3.2rem;
-  line-height:3.2rem;border-radius:50%;margin-top:.3rem;
-  animation:pulse 2s ease infinite;
+  color:#fff;background:var(--primary);min-width:3.2rem;height:3.2rem;
+  line-height:3.2rem;border-radius:3.2rem;margin-top:.3rem;padding:0 .6rem;
+  animation:pulse 2s ease infinite;white-space:nowrap;
 }
 
 /* Timer */
@@ -712,16 +712,24 @@ function updateTurnDisplay() {
   const input = $('answerInput');
   if (input) {
     input.disabled = !isMyTurn;
-    input.placeholder = isMyTurn ? 'ことばを入力…' : `${currentTurn}さんの番です…`;
+    const isFirstWord = $('currentWord').textContent === '―';
+    input.placeholder = isMyTurn
+      ? (isFirstWord ? '最初のことばを入力…' : 'ことばを入力…')
+      : `${currentTurn}さんの番です…`;
     if (isMyTurn) input.focus();
   }
 }
 
 function setCurrentWord(word, nextChar) {
   const el = $('currentWord');
-  el.textContent = word;
+  if (word) {
+    el.textContent = word;
+    $('nextChar').textContent = nextChar || '?';
+  } else {
+    el.textContent = '―';
+    $('nextChar').textContent = '自由';
+  }
   el.style.animation = 'none'; el.offsetHeight; el.style.animation = '';
-  $('nextChar').textContent = nextChar || '?';
 }
 
 function renderPlayers(players, scores) {
@@ -786,7 +794,11 @@ function onGameStarted(msg) {
     timerMax = msg.timeLimit;
     onTimer(msg.timeLimit);
   }
-  addMessage('ゲームが始まりました！', 'success');
+  if (msg.currentTurn === myName) {
+    addMessage('ゲームが始まりました！最初のことばを入力してください！', 'success');
+  } else {
+    addMessage(`ゲームが始まりました！${esc(msg.currentTurn)}さんが最初のことばを選びます`, 'success');
+  }
   $('gameOver').classList.add('hidden');
 }
 
