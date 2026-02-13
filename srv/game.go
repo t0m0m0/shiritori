@@ -19,6 +19,7 @@ type RoomSettings struct {
 	TimeLimit   int      `json:"timeLimit"`
 	AllowedRows []string `json:"allowedRows,omitempty"` // e.g. ["あ行","か行"]; empty = all rows allowed
 	NoDakuten   bool     `json:"noDakuten,omitempty"`    // disallow dakuten/handakuten characters
+	MaxLives    int      `json:"maxLives"`               // max lives per player (default 3 if 0)
 }
 
 // WordEntry records a word played in the game.
@@ -30,10 +31,11 @@ type WordEntry struct {
 
 // Player represents a connected player.
 type Player struct {
-	Name string
+	Name  string
 	Score int
-	Conn *websocket.Conn
-	Send chan []byte
+	Lives int
+	Conn  *websocket.Conn
+	Send  chan []byte
 }
 
 // Room holds the state for a single game room.
@@ -253,9 +255,14 @@ func (r *Room) StartGame() error {
 	r.TurnOrder = append([]string{r.Owner}, r.TurnOrder...)
 	r.TurnIndex = 0
 
-	// Reset scores
+	// Reset scores and initialize lives
+	maxLives := r.Settings.MaxLives
+	if maxLives <= 0 {
+		maxLives = 3
+	}
 	for _, p := range r.Players {
 		p.Score = 0
+		p.Lives = maxLives
 	}
 
 	r.History = []WordEntry{}
@@ -329,6 +336,7 @@ const (
 	ValidateOK       ValidateResult = iota // Word accepted
 	ValidateRejected                        // Word rejected (hard fail)
 	ValidateVote                            // Need genre vote
+	ValidatePenalty                         // Word accepted but player loses a life
 )
 
 // ValidateAndSubmitWord checks a word and applies it if valid.
@@ -351,6 +359,11 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		return ValidateRejected, fmt.Sprintf("%sさんの番です", r.TurnOrder[r.TurnIndex])
 	}
 
+	// Check player is not eliminated
+	if p, ok := r.Players[playerName]; ok && p.Lives <= 0 {
+		return ValidateRejected, "あなたは脱落済みです"
+	}
+
 	// Check that word is valid Japanese kana
 	if !isJapanese(word) {
 		return ValidateRejected, "ひらがな・カタカナで入力してください"
@@ -367,40 +380,56 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		return ValidateRejected, fmt.Sprintf("%d文字以下で入力してください", r.Settings.MaxLen)
 	}
 
-	// Check ends with ん
-	runes := []rune(hiragana)
-	if runes[len(runes)-1] == 'ん' {
-		return ValidateRejected, "「ん」で終わる言葉は使えません"
-	}
-
 	// Check first char matches last char of current word (skip for first word)
+	// Also skip if previous word ended with ん (penalty accepted, next player can start freely)
 	if r.CurrentWord != "" {
 		prevHiragana := toHiragana(r.CurrentWord)
 		lastChar := getLastChar(prevHiragana)
-		firstChar := getFirstChar(hiragana)
+		prevRunes := []rune(prevHiragana)
+		endsWithN := len(prevRunes) > 0 && prevRunes[len(prevRunes)-1] == 'ん'
 
-		if lastChar != firstChar {
-			return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
-		}
-	}
-
-	// Check allowed rows
-	if len(r.Settings.AllowedRows) > 0 {
-		if badChar, badRow := ValidateAllowedRows(hiragana, r.Settings.AllowedRows); badChar != 0 {
-			return ValidateRejected, fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
-		}
-	}
-
-	// Check no dakuten/handakuten
-	if r.Settings.NoDakuten {
-		if badChar := ValidateNoDakuten(hiragana); badChar != 0 {
-			return ValidateRejected, fmt.Sprintf("「%c」は濁音・半濁音の文字です（濁音・半濁音禁止ルール）", badChar)
+		if !endsWithN {
+			firstChar := getFirstChar(hiragana)
+			if lastChar != firstChar {
+				return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
+			}
 		}
 	}
 
 	// Check not already used
 	if r.UsedWords[hiragana] {
 		return ValidateRejected, "この言葉はすでに使われています"
+	}
+
+	// --- Penalty checks: word IS accepted but player loses a life ---
+
+	// Check ends with ん
+	runes := []rune(hiragana)
+	if runes[len(runes)-1] == 'ん' {
+		r.applyWordLocked(word, hiragana, playerName)
+		penaltyMsg := "「ん」で終わる言葉を使いました"
+		r.applyPenaltyLocked(playerName)
+		return ValidatePenalty, penaltyMsg
+	}
+
+	// Check no dakuten/handakuten
+	if r.Settings.NoDakuten {
+		if badChar := ValidateNoDakuten(hiragana); badChar != 0 {
+			r.applyWordLocked(word, hiragana, playerName)
+			penaltyMsg := fmt.Sprintf("「%c」は濁音・半濁音の文字です（濁音・半濁音禁止ルール）", badChar)
+			r.applyPenaltyLocked(playerName)
+			return ValidatePenalty, penaltyMsg
+		}
+	}
+
+	// Check allowed rows
+	if len(r.Settings.AllowedRows) > 0 {
+		if badChar, badRow := ValidateAllowedRows(hiragana, r.Settings.AllowedRows); badChar != 0 {
+			r.applyWordLocked(word, hiragana, playerName)
+			penaltyMsg := fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
+			r.applyPenaltyLocked(playerName)
+			return ValidatePenalty, penaltyMsg
+		}
 	}
 
 	// Genre check — if fails, start a vote (only in multiplayer)
@@ -441,9 +470,21 @@ func (r *Room) applyWordLocked(word, hiragana, playerName string) {
 		p.Score++
 	}
 
-	// Advance turn
+	// Advance turn, skipping eliminated players
 	if len(r.TurnOrder) > 0 {
-		r.TurnIndex = (r.TurnIndex + 1) % len(r.TurnOrder)
+		start := r.TurnIndex
+		for {
+			r.TurnIndex = (r.TurnIndex + 1) % len(r.TurnOrder)
+			// If we cycled all the way back, stop (avoid infinite loop)
+			if r.TurnIndex == start {
+				break
+			}
+			// If the current turn player is alive, stop
+			nextName := r.TurnOrder[r.TurnIndex]
+			if p, ok := r.Players[nextName]; ok && p.Lives > 0 {
+				break
+			}
+		}
 	}
 
 	// Reset timer
@@ -451,6 +492,65 @@ func (r *Room) applyWordLocked(word, hiragana, playerName string) {
 
 	// Clear any resolved vote
 	r.pendingVote = nil
+}
+
+// applyPenaltyLocked decrements a player's lives. Caller must hold r.mu.
+func (r *Room) applyPenaltyLocked(playerName string) {
+	if p, ok := r.Players[playerName]; ok {
+		p.Lives--
+	}
+}
+
+// getAlivePlayers returns the names of players with lives > 0. Caller must hold r.mu.
+func (r *Room) getAlivePlayers() []string {
+	var alive []string
+	for name, p := range r.Players {
+		if p.Lives > 0 {
+			alive = append(alive, name)
+		}
+	}
+	return alive
+}
+
+// checkElimination checks if a player is eliminated and whether the game is over.
+// Returns (eliminated, gameOver, lastSurvivor). Caller must hold r.mu.
+func (r *Room) checkElimination(playerName string) (eliminated bool, gameOver bool, lastSurvivor string) {
+	if p, ok := r.Players[playerName]; ok && p.Lives <= 0 {
+		eliminated = true
+	}
+	alive := r.getAlivePlayers()
+	totalPlayers := len(r.Players)
+	if totalPlayers <= 1 {
+		// Solo play: game over only when player is eliminated
+		if len(alive) == 0 {
+			gameOver = true
+		}
+	} else {
+		// Multiplayer: game over when 1 or fewer alive
+		if len(alive) <= 1 {
+			gameOver = true
+			if len(alive) == 1 {
+				lastSurvivor = alive[0]
+			}
+		}
+	}
+	return
+}
+
+// getLivesLocked returns a map of player lives. Caller must hold r.mu.
+func (r *Room) getLivesLocked() map[string]int {
+	lives := make(map[string]int, len(r.Players))
+	for name, p := range r.Players {
+		lives[name] = p.Lives
+	}
+	return lives
+}
+
+// GetLives returns a map of player lives (public, acquires lock).
+func (r *Room) GetLives() map[string]int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.getLivesLocked()
 }
 
 // CastVote records a player's vote and returns (allVoted, accepted).
@@ -596,5 +696,11 @@ func (r *Room) GetState() map[string]any {
 		state["currentTurn"] = r.TurnOrder[r.TurnIndex]
 	}
 	state["owner"] = r.Owner
+	state["lives"] = r.getLivesLocked()
+	maxLives := r.Settings.MaxLives
+	if maxLives <= 0 {
+		maxLives = 3
+	}
+	state["maxLives"] = maxLives
 	return state
 }

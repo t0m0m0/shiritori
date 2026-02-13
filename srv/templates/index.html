@@ -204,6 +204,7 @@ input,select{font-family:inherit;font-size:1rem}
   font-weight:700;color:var(--primary);background:var(--surface2);
   padding:.15rem .5rem;border-radius:12px;font-size:.85rem;
 }
+.player-lives{font-size:.75rem;margin:0 .3rem}
 
 /* Messages */
 .messages{max-height:150px;overflow-y:auto;list-style:none;margin-top:.5rem}
@@ -430,6 +431,19 @@ input,select{font-family:inherit;font-size:1rem}
         </select>
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ライフ数</label>
+        <select id="maxLives">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="form-group"></div>
+    </div>
     <div class="form-group">
       <label>使用可能な行（未選択＝すべて使用可能）</label>
       <div id="kanaRowCheckboxes" class="kana-row-grid"></div>
@@ -555,6 +569,8 @@ let waitingPlayers = [];
 let voteTimerInterval = null;
 let hasVoted = false;
 let kanaRowNames = [];
+let currentLives = {};
+let maxLives = 3;
 
 const $ = id => document.getElementById(id);
 
@@ -589,6 +605,7 @@ function handleMessage(msg) {
     case 'vote_request': onVoteRequest(msg); break;
     case 'vote_update': onVoteUpdate(msg); break;
     case 'vote_result': onVoteResult(msg); break;
+    case 'penalty': onPenalty(msg); break;
     case 'room_state': onJoined(msg); break;
     case 'error': addMessage(msg.message, 'error'); break;
     default: console.log('Unknown message', msg);
@@ -672,6 +689,7 @@ function createRoom() {
       maxLen: parseInt($('maxLen').value) || 0,
       genre: $('genre').value,
       timeLimit: parseInt($('timeLimit').value) || 0,
+      maxLives: parseInt($('maxLives').value) || 3,
       allowedRows: allowedRows.length > 0 ? allowedRows : undefined,
       noDakuten: noDakuten || undefined
     }
@@ -689,10 +707,12 @@ function onJoined(msg) {
   currentRoomId = msg.roomId;
   currentSettings = msg.settings || {};
   roomOwner = msg.owner || '';
+  currentLives = msg.lives || {};
+  maxLives = msg.maxLives || currentSettings.maxLives || 3;
   showView('game');
   $('gameRoomTitle').textContent = currentSettings.name || 'ルーム';
   renderRules();
-  renderPlayers(msg.players || [], msg.scores || {});
+  renderPlayers(msg.players || [], msg.scores || {}, currentLives);
   $('historyList').innerHTML = '';
   (msg.history || []).forEach(h => addHistoryItem(h.word, h.player));
   if (msg.turnOrder) turnOrder = msg.turnOrder;
@@ -736,6 +756,7 @@ function renderRules() {
   if (s.timeLimit > 0) badges.push(`⏱️ ${s.timeLimit}秒`);
   if (s.allowedRows && s.allowedRows.length > 0) badges.push(`🎯 ${s.allowedRows.join('・')}`);
   if (s.noDakuten) badges.push('🚫 濁音・半濁音禁止');
+  badges.push(`❤️ ライフ${s.maxLives || 3}`);
   $('gameRules').innerHTML = badges.map(b => `<span class="rule-badge">${b}</span>`).join('');
   timerMax = s.timeLimit || 0;
 }
@@ -781,22 +802,24 @@ function setCurrentWord(word) {
   el.style.animation = 'none'; el.offsetHeight; el.style.animation = '';
 }
 
-function renderPlayers(players, scores) {
+function renderPlayers(players, scores, lives) {
   const list = $('playerList');
   list.innerHTML = '';
-  // players can be [{name,score}] from server or string[]
   let items = [];
   if (Array.isArray(players) && players.length > 0 && typeof players[0] === 'object') {
-    items = players.map(p => ({ name: p.name, score: p.score || 0 }));
+    items = players.map(p => ({ name: p.name, score: p.score || 0, lives: p.lives !== undefined ? p.lives : maxLives }));
   } else {
     const arr = Array.isArray(players) ? players : Object.keys(players);
-    items = arr.map(p => ({ name: p, score: (scores && scores[p]) || 0 }));
+    items = arr.map(p => ({ name: p, score: (scores && scores[p]) || 0, lives: (lives && lives[p] !== undefined) ? lives[p] : maxLives }));
   }
   items.sort((a, b) => b.score - a.score);
   items.forEach(p => {
     const li = document.createElement('li');
     li.className = 'player-item';
+    if (p.lives <= 0) li.style.opacity = '0.4';
+    const heartsStr = p.lives > 0 ? '❤️'.repeat(Math.min(p.lives, 10)) : '💀';
     li.innerHTML = `<span class="player-name-display">${esc(p.name)}${p.name === myName ? ' 👈' : ''}</span>
+      <span class="player-lives">${heartsStr}</span>
       <span class="player-score">${p.score}点</span>`;
     list.appendChild(li);
   });
@@ -837,6 +860,8 @@ function onGameStarted(msg) {
   setCurrentWord(msg.currentWord || msg.firstWord || '');
   if (msg.turnOrder) turnOrder = msg.turnOrder;
   if (msg.currentTurn) currentTurn = msg.currentTurn;
+  if (msg.lives) currentLives = msg.lives;
+  if (msg.maxLives) maxLives = msg.maxLives;
   updateTurnDisplay();
   // Initialize timer display
   if (msg.timeLimit && msg.timeLimit > 0) {
@@ -863,7 +888,8 @@ function submitAnswer() {
 function onNewWord(msg) {
   setCurrentWord(msg.word);
   addHistoryItem(msg.word, msg.player);
-  if (msg.scores) updateScores(msg.scores);
+  if (msg.lives) currentLives = msg.lives;
+  if (msg.scores || msg.lives) updateScoresAndLives(msg.scores, msg.lives);
   if (msg.currentTurn) currentTurn = msg.currentTurn;
   updateTurnDisplay();
   addMessage(`${msg.player}さんが正解！「${msg.word}」`, 'success');
@@ -880,21 +906,30 @@ function addHistoryItem(word, player) {
 }
 
 function updateScores(scores) {
+  updateScoresAndLives(scores, null);
+}
+
+function updateScoresAndLives(scores, lives) {
+  if (lives) currentLives = lives;
   const list = $('playerList');
-  [...list.children].forEach(li => {
-    const nameEl = li.querySelector('.player-name-display');
-    const scoreEl = li.querySelector('.player-score');
-    const rawName = nameEl.textContent.replace(' 👈', '');
-    if (scores[rawName] !== undefined) scoreEl.textContent = scores[rawName] + '点';
+  const playerNames = [...list.children].map(li => li.querySelector('.player-name-display').textContent.replace(' 👈', ''));
+  const items = playerNames.map(name => ({
+    name,
+    score: (scores && scores[name] !== undefined) ? scores[name] : (parseInt([...list.children].find(li => li.querySelector('.player-name-display').textContent.replace(' 👈', '') === name)?.querySelector('.player-score')?.textContent) || 0),
+    lives: (currentLives && currentLives[name] !== undefined) ? currentLives[name] : maxLives
+  }));
+  items.sort((a, b) => b.score - a.score);
+  list.innerHTML = '';
+  items.forEach(p => {
+    const li = document.createElement('li');
+    li.className = 'player-item';
+    if (p.lives <= 0) li.style.opacity = '0.4';
+    const heartsStr = p.lives > 0 ? '❤️'.repeat(Math.min(p.lives, 10)) : '💀';
+    li.innerHTML = `<span class="player-name-display">${esc(p.name)}${p.name === myName ? ' 👈' : ''}</span>
+      <span class="player-lives">${heartsStr}</span>
+      <span class="player-score">${p.score}点</span>`;
+    list.appendChild(li);
   });
-  // Re-sort
-  const items = [...list.children];
-  items.sort((a, b) => {
-    const sa = parseInt(a.querySelector('.player-score').textContent) || 0;
-    const sb = parseInt(b.querySelector('.player-score').textContent) || 0;
-    return sb - sa;
-  });
-  items.forEach(i => list.appendChild(i));
 }
 
 function onInvalid(reason) {
@@ -923,7 +958,11 @@ function onGameOver(msg) {
   const overlay = $('gameOver');
   overlay.classList.remove('hidden');
   let reason = msg.reason || '';
-  if (msg.loser) reason = `${msg.loser}さん - ${reason}`;
+  if (msg.winner) {
+    reason = `🏆 ${msg.winner}さんの勝利！` + (msg.loser ? ` (${msg.loser}さん脱落)` : '');
+  } else if (msg.loser) {
+    reason = `${msg.loser}さん - ${reason}`;
+  }
   $('gameOverReason').textContent = reason;
   const list = $('finalScores');
   list.innerHTML = '';
@@ -1047,6 +1086,25 @@ function castVote(accept) {
   send({ type: 'vote', accept });
   $('voteButtonArea').classList.add('hidden');
   $('voteWaiting').classList.remove('hidden');
+}
+
+function onPenalty(msg) {
+  if (msg.allLives) currentLives = msg.allLives;
+  updateScoresAndLives(null, msg.allLives);
+  
+  const livesLeft = msg.lives !== undefined ? msg.lives : '?';
+  if (msg.eliminated) {
+    addMessage(`💀 ${msg.player}さんが脱落！「${msg.reason}」`, 'error');
+    if (msg.player === myName) {
+      addMessage('💀 あなたは脱落しました…', 'error');
+    }
+  } else {
+    addMessage(`💔 ${msg.player}さんがライフ-1！残り${livesLeft} 「${msg.reason}」`, 'error');
+    if (msg.player === myName) {
+      document.body.style.animation = 'shake .4s ease';
+      setTimeout(() => document.body.style.animation = '', 500);
+    }
+  }
 }
 
 function esc(str) {

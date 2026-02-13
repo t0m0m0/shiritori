@@ -95,7 +95,7 @@ func TestWordValidation(t *testing.T) {
 			Genre:  "",
 		},
 		Players: map[string]*Player{
-			"test": {Name: "test", Score: 0, Send: make(chan []byte, 256)},
+			"test": {Name: "test", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
 		CurrentWord: "しりとり",
 		Status:      "playing",
@@ -109,18 +109,25 @@ func TestWordValidation(t *testing.T) {
 		t.Error("expected りんご to be valid")
 	}
 
-	// Word ending in ん
+	// Word ending in ん — now a penalty (word accepted but player loses a life)
 	room.CurrentWord = "りんご"
 	result, msg := room.ValidateAndSubmitWord("ごはん", "test")
-	if result == ValidateOK {
-		t.Error("expected ごはん to be rejected (ends in ん)")
+	if result != ValidatePenalty {
+		t.Errorf("expected ごはん to be ValidatePenalty, got result=%d msg=%s", result, msg)
 	}
 	_ = msg
 
-	// Wrong starting character
+	// After ん-ending word, any starting character is allowed
 	result, _ = room.ValidateAndSubmitWord("さくら", "test")
+	if result != ValidateOK {
+		t.Error("expected さくら to be valid (any start allowed after ん-ending word)")
+	}
+
+	// Wrong starting character (non-ん case)
+	room.CurrentWord = "りんご" // last char is ご
+	result, _ = room.ValidateAndSubmitWord("あひる", "test")
 	if result == ValidateOK {
-		t.Error("expected さくら to be rejected (doesn't start with ご)")
+		t.Error("expected あひる to be rejected (doesn't start with ご)")
 	}
 
 	// Already used
@@ -243,7 +250,7 @@ func TestAllowedRowsInGame(t *testing.T) {
 			AllowedRows: []string{"あ行", "か行"},
 		},
 		Players: map[string]*Player{
-			"test": {Name: "test", Score: 0, Send: make(chan []byte, 256)},
+			"test": {Name: "test", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
 		CurrentWord: "",
 		Status:      "playing",
@@ -257,10 +264,10 @@ func TestAllowedRowsInGame(t *testing.T) {
 		t.Error("expected あき to be valid with あ行+か行")
 	}
 
-	// "きた" - た is in た行 - should fail
+	// "きた" - た is in た行 - should be a penalty (word accepted, life lost)
 	room.CurrentWord = "あき"
 	result, msg := room.ValidateAndSubmitWord("きた", "test")
-	if result != ValidateRejected {
-		t.Errorf("expected きた to be rejected, got result=%d msg=%s", result, msg)
+	if result != ValidatePenalty {
+		t.Errorf("expected きた to be ValidatePenalty, got result=%d msg=%s", result, msg)
 	}
 }

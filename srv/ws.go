@@ -307,6 +307,11 @@ func (s *Server) handleStartGame(room *Room) {
 	}
 	turnOrder := make([]string, len(room.TurnOrder))
 	copy(turnOrder, room.TurnOrder)
+	lives := room.getLivesLocked()
+	maxLives := room.Settings.MaxLives
+	if maxLives <= 0 {
+		maxLives = 3
+	}
 	room.mu.Unlock()
 
 	room.Broadcast(mustMarshal(map[string]any{
@@ -316,6 +321,8 @@ func (s *Server) handleStartGame(room *Room) {
 		"timeLimit":   room.Settings.TimeLimit,
 		"currentTurn": currentTurn,
 		"turnOrder":   turnOrder,
+		"lives":       lives,
+		"maxLives":    maxLives,
 	}))
 }
 
@@ -369,6 +376,52 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 
 	case ValidateOK:
 		s.broadcastWordAccepted(room, word, playerName)
+
+	case ValidatePenalty:
+		// Word is accepted but player loses a life
+		s.broadcastWordAccepted(room, word, playerName)
+
+		room.mu.Lock()
+		var livesLeft int
+		var eliminated, gameOver bool
+		var lastSurvivor string
+		if p, ok := room.Players[playerName]; ok {
+			livesLeft = p.Lives
+		}
+		eliminated, gameOver, lastSurvivor = room.checkElimination(playerName)
+		lives := room.getLivesLocked()
+		scores := room.getScoresLocked()
+		history := room.History
+		room.mu.Unlock()
+
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":       "penalty",
+			"player":     playerName,
+			"reason":     msg,
+			"lives":      livesLeft,
+			"eliminated": eliminated,
+			"allLives":   lives,
+		}))
+
+		if gameOver {
+			room.mu.Lock()
+			room.Status = "finished"
+			room.mu.Unlock()
+			room.StopTimer()
+
+			reason := "ゲーム終了"
+			if lastSurvivor != "" {
+				reason = fmt.Sprintf("%sさんの勝利！", lastSurvivor)
+			}
+			room.Broadcast(mustMarshal(map[string]any{
+				"type":    "game_over",
+				"reason":  reason,
+				"winner":  lastSurvivor,
+				"scores":  scores,
+				"history": history,
+				"lives":   lives,
+			}))
+		}
 	}
 }
 
@@ -437,6 +490,7 @@ func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
 	if len(room.TurnOrder) > 0 {
 		nextTurn = room.TurnOrder[room.TurnIndex]
 	}
+	lives := room.getLivesLocked()
 	room.mu.Unlock()
 
 	room.Broadcast(mustMarshal(map[string]any{
@@ -447,5 +501,6 @@ func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
 		"scores":      room.GetScores(),
 		"history":     room.History,
 		"currentTurn": nextTurn,
+		"lives":       lives,
 	}))
 }
