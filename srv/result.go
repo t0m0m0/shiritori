@@ -8,7 +8,6 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -209,7 +208,7 @@ func (s *Server) HandleViewResultPage(w http.ResponseWriter, r *http.Request) {
 
 	resultJSON, _ := json.Marshal(result)
 
-	tmpl, err := template.ParseFiles(filepath.Join(s.TemplatesDir, "result.html"))
+	tmpl, err := template.ParseFS(templatesFS, "templates/result.html")
 	if err != nil {
 		slog.Error("parse result template", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)

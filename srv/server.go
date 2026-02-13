@@ -4,32 +4,25 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
-	"path/filepath"
-	"runtime"
 
 	"srv.exe.dev/db"
 )
 
 // Server holds shared state for the HTTP/WebSocket server.
 type Server struct {
-	DB           *sql.DB
-	Hostname     string
-	TemplatesDir string
-	StaticDir    string
-	Rooms        *RoomManager
+	DB       *sql.DB
+	Hostname string
+	Rooms    *RoomManager
 }
 
 // New creates a new Server with database and room manager.
 func New(dbPath, hostname string) (*Server, error) {
-	_, thisFile, _, _ := runtime.Caller(0)
-	baseDir := filepath.Dir(thisFile)
 	srv := &Server{
-		Hostname:     hostname,
-		TemplatesDir: filepath.Join(baseDir, "templates"),
-		StaticDir:    filepath.Join(baseDir, "static"),
-		Rooms:        NewRoomManager(),
+		Hostname: hostname,
+		Rooms:    NewRoomManager(),
 	}
 	if err := srv.setUpDatabase(dbPath); err != nil {
 		return nil, err
@@ -52,7 +45,13 @@ func (s *Server) setUpDatabase(dbPath string) error {
 
 // HandleIndex serves the main page.
 func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(s.TemplatesDir, "index.html"))
+	data, err := templatesFS.ReadFile("templates/index.html")
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
 }
 
 // HandleRoomInfo returns room summary data.
@@ -93,7 +92,8 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/results", s.HandleSaveResult)
 	mux.HandleFunc("GET /results/{id}/ogp.svg", s.HandleOGPImage)
 	mux.HandleFunc("GET /results/{id}", s.HandleViewResultPage)
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
+	staticSub, _ := fs.Sub(staticFS, "static")
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 	slog.Info("starting server", "addr", addr)
 	return http.ListenAndServe(addr, mux)
 }
