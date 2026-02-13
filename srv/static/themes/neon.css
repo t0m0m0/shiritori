@@ -18,10 +18,7 @@
   80%  { clip-path: inset(54% 0 7% 0);  transform: translate(-1px,0); }
   100% { clip-path: inset(58% 0 43% 0); transform: translate(0); }
 }
-@keyframes scanline {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
+
 @keyframes neonPulse {
   0%,100% { box-shadow: 0 0 5px var(--neon-pink-30), 0 0 15px var(--neon-pink-15), inset 0 0 5px var(--neon-pink-08); }
   50%     { box-shadow: 0 0 12px var(--neon-pink-50), 0 0 35px var(--neon-pink-25), inset 0 0 12px var(--neon-pink-08); }
@@ -95,18 +92,7 @@
     radial-gradient(ellipse at 50% 80%, rgba(249,248,113,.04) 0%, transparent 50%);
   opacity: 1;
 }
-/* CRT scanline sweep */
-[data-theme="neon"] body::after {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, rgba(0,245,212,.08), transparent);
-  z-index: 9999;
-  pointer-events: none;
-  animation: scanline 8s linear infinite;
-  opacity: 1;
-}
+
 
 /* ── Container: wider on neon for cinematic feel ── */
 [data-theme="neon"] .container {
