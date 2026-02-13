@@ -748,6 +748,31 @@
   animation: none !important;
 }
 
+/* Two-column layout: form left, rules right */
+[data-theme="wamo"] .rules-table {
+  font-family: "Zen Maru Gothic", sans-serif;
+  font-weight: 300;
+}
+
+[data-theme="wamo"] .rules-table td {
+  border-bottom-color: #eee8db;
+  color: #5c5c6e;
+}
+
+[data-theme="wamo"] .rules-table .rules-val {
+  color: #1a1a2e;
+}
+
+[data-theme="wamo"] .rules-table .rules-danger {
+  color: #c53d43;
+}
+
+[data-theme="wamo"] .rules-desc {
+  font-family: "Zen Maru Gothic", sans-serif;
+  font-weight: 300;
+  color: #888;
+}
+
 /* Invite room rules badges */
 [data-theme="wamo"] .invite-room-rules .rule-badge {
   border: 1px solid #d5cec2;

@@ -612,6 +612,31 @@
   color: rgba(255,255,255,0.5);
 }
 
+/* ── Rules Panel ── */
+[data-theme="neon"] .rules-table {
+  font-family: 'DotGothic16', monospace;
+}
+
+[data-theme="neon"] .rules-table td {
+  border-bottom-color: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.55);
+}
+
+[data-theme="neon"] .rules-table .rules-val {
+  color: #00f5d4;
+  text-shadow: 0 0 4px rgba(0,245,212,0.3);
+}
+
+[data-theme="neon"] .rules-table .rules-danger {
+  color: #ff3860;
+  text-shadow: 0 0 4px rgba(255,56,96,0.3);
+}
+
+[data-theme="neon"] .rules-desc {
+  font-family: 'DotGothic16', monospace;
+  color: rgba(255,255,255,0.3);
+}
+
 /* ── Rule Badges ── */
 [data-theme="neon"] .rule-badge {
   background: rgba(255,255,255,0.04);

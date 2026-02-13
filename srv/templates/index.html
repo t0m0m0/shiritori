@@ -465,7 +465,46 @@
         display: none;
       }
       .create-room-layout {
-        display: contents;
+        display: grid;
+        grid-template-columns: 3fr 2fr;
+        gap: 2.5rem;
+      }
+      .rules-panel {
+        display: block;
+        padding-top: 0.5rem;
+      }
+      .rules-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--font-body);
+        font-size: 0.85rem;
+        font-weight: 400;
+      }
+      .rules-table td {
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--text2);
+      }
+      .rules-table .rules-val {
+        text-align: right;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .rules-table .rules-danger {
+        color: var(--danger);
+      }
+      .rules-desc {
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 400;
+        color: var(--text3);
+        line-height: 1.8;
+        margin-top: 1.2rem;
+      }
+      @media (max-width: 700px) {
+        .create-room-layout {
+          grid-template-columns: 1fr;
+        }
       }
       .invite-card {
         display: flex;
