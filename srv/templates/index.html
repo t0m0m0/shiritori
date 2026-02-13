@@ -884,7 +884,6 @@ function renderRoomList(rooms) {
       <div class="room-actions">
         <button class="btn btn-primary" onclick="showInviteRoomPreview('${esc(r.id)}')"
           ${r.status === 'playing' ? 'disabled style="opacity:.5"' : ''}>参加</button>
-        <button class="btn btn-outline" onclick="copyRoomLinkById('${esc(r.id)}')">リンク</button>
       </div>`;
     list.appendChild(li);
   });
@@ -987,12 +986,6 @@ function prepareWaitingRoom(room) {
   updateWaitingRoom();
 }
 
-function copyRoomLinkById(roomId) {
-  const link = getRoomLink(roomId);
-  copyText(link).then(ok => {
-    addMessage(ok ? 'ルームのリンクをコピーしました' : 'ルームのリンクをコピーできませんでした', ok ? 'success' : 'error');
-  });
-}
 
 /* ========== GAME ROOM ========== */
 function onJoined(msg) {
