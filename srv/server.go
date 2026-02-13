@@ -2,6 +2,7 @@ package srv
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -54,11 +55,41 @@ func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath.Join(s.TemplatesDir, "index.html"))
 }
 
+// HandleRoomInfo returns room summary data.
+func (s *Server) HandleRoomInfo(w http.ResponseWriter, r *http.Request) {
+	roomID := r.PathValue("id")
+	if roomID == "" {
+		http.NotFound(w, r)
+		return
+	}
+	room := s.Rooms.GetRoom(roomID)
+	if room == nil {
+		http.NotFound(w, r)
+		return
+	}
+	players := room.PlayerNames()
+	room.mu.Lock()
+	payload := map[string]any{
+		"id":          room.ID,
+		"name":        room.Settings.Name,
+		"owner":       room.Owner,
+		"status":      room.Status,
+		"playerCount": len(players),
+		"settings":    room.Settings,
+		"players":     players,
+	}
+	room.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(payload)
+}
+
 // Serve starts the HTTP server with the configured routes.
 func (s *Server) Serve(addr string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.HandleIndex)
 	mux.HandleFunc("GET /ws", s.HandleWS)
+	mux.HandleFunc("GET /room/{id}", s.HandleRoomInfo)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
 	slog.Info("starting server", "addr", addr)
 	return http.ListenAndServe(addr, mux)

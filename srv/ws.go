@@ -79,6 +79,11 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			"player": playerName,
 		}))
 
+		currentRoom.Broadcast(mustMarshal(map[string]any{
+			"type":    "player_list",
+			"players": currentRoom.PlayerNames(),
+		}))
+
 		if remaining == 0 {
 			currentRoom.StopTimer()
 			s.Rooms.RemoveRoom(currentRoom.ID)
@@ -265,6 +270,11 @@ func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *R
 	state["type"] = "room_joined"
 	player.Send <- mustMarshal(state)
 
+	room.Broadcast(mustMarshal(map[string]any{
+		"type":    "player_list",
+		"players": room.PlayerNames(),
+	}))
+
 	return room, player
 }
 
@@ -299,6 +309,11 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Roo
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":   "player_joined",
 		"player": name,
+	}))
+
+	room.Broadcast(mustMarshal(map[string]any{
+		"type":    "player_list",
+		"players": room.PlayerNames(),
 	}))
 
 	return room, nil

@@ -132,6 +132,10 @@ input,select{font-family:inherit;font-size:1rem}
 .room-meta span{margin-right:.75rem}
 .room-actions{display:flex;gap:.5rem;flex-wrap:wrap}
 .no-rooms{text-align:center;color:var(--text2);padding:2rem;font-size:.95rem}
+.room-create-simple .btn + .btn{margin-top:.5rem}
+.invite-room-title{font-weight:700;font-size:1.05rem;margin-bottom:.4rem;color:var(--primary)}
+.invite-room-rules{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}
+.invite-room-host{font-size:.9rem;color:var(--text2);margin-bottom:.5rem}
 
 /* ── Game Room ── */
 #game{position:relative}
@@ -148,6 +152,31 @@ input,select{font-family:inherit;font-size:1rem}
   font-size:.75rem;padding:.25rem .6rem;border-radius:20px;
   background:var(--surface2);color:var(--text2);font-weight:500;
 }
+.invite-view #preGame{
+  padding:1.5rem;
+}
+.invite-view #preGame .waiting-text{
+  display:none;
+}
+.invite-view #preGame .waiting-players{
+  margin-top:0;
+}
+.invite-view #preGame #startBtn,
+.invite-view #preGame #waitOwnerText{
+  display:none!important;
+}
+.invite-view #activeGame{display:none!important}
+.invite-view .game-header-actions{display:none!important}
+.invite-view .game-body,
+.invite-view .answer-area,
+.invite-view .current-word-area,
+.invite-view .my-lives-display,
+.invite-view #turnIndicator,
+.invite-view #timerSection{
+  display:none!important;
+}
+.invite-view .waiting-player-list{min-height:2.5rem}
+.invite-view .waiting-empty{color:var(--text2);font-size:.85rem}
 
 /* Current word area */
 .current-word-area{
@@ -443,64 +472,73 @@ input,select{font-family:inherit;font-size:1rem}
 
   <div id="lobbyCreateCard" class="card slide-up">
     <h2>ルームを作る</h2>
-    <div class="form-group">
-      <label>ルーム名</label>
-      <input type="text" id="roomNameInput" placeholder="楽しいしりとり" maxlength="20">
-    </div>
-    <div class="form-row">
+    <div id="roomCreateSimple" class="room-create-simple">
       <div class="form-group">
-        <label>最少文字数</label>
-        <input type="number" id="minLen" value="1" min="1" max="20">
+        <label>ルーム名</label>
+        <input type="text" id="roomNameInput" placeholder="楽しいしりとり" maxlength="20">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
+      <button class="btn btn-outline btn-block" onclick="toggleAdvanced(true)">詳細設定</button>
+    </div>
+    <div id="roomCreateAdvanced" class="hidden">
+      <div class="form-row">
+        <div class="form-group">
+          <label>最少文字数</label>
+          <input type="number" id="minLen" value="1" min="1" max="20">
+        </div>
+        <div class="form-group">
+          <label>最大文字数（0＝制限なし）</label>
+          <input type="number" id="maxLen" value="0" min="0" max="99">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ジャンル</label>
+          <select id="genre">
+            <option value="">なし</option>
+            <option value="食べ物">🍔 食べ物</option>
+            <option value="動物">🐾 動物</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>制限時間</label>
+          <select id="timeLimit">
+            <option value="0">なし</option>
+            <option value="10">10秒</option>
+            <option value="20">20秒</option>
+            <option value="30" selected>30秒</option>
+            <option value="60">60秒</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ライフ数</label>
+          <select id="maxLives">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+        <div class="form-group"></div>
       </div>
       <div class="form-group">
-        <label>最大文字数（0＝制限なし）</label>
-        <input type="number" id="maxLen" value="0" min="0" max="99">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>ジャンル</label>
-        <select id="genre">
-          <option value="">なし</option>
-          <option value="食べ物">🍔 食べ物</option>
-          <option value="動物">🐾 動物</option>
-        </select>
+        <label>使用可能な行（未選択＝すべて使用可能）</label>
+        <div id="kanaRowCheckboxes" class="kana-row-grid"></div>
       </div>
       <div class="form-group">
-        <label>制限時間</label>
-        <select id="timeLimit">
-          <option value="0">なし</option>
-          <option value="10">10秒</option>
-          <option value="20">20秒</option>
-          <option value="30" selected>30秒</option>
-          <option value="60">60秒</option>
-        </select>
+        <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
+          <input type="checkbox" id="noDakuten" style="display:inline;width:auto;margin-right:.3rem">
+          濁音・半濁音禁止（がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ）
+        </label>
+      </div>
+      <div class="form-row">
+        <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
+        <button class="btn btn-outline btn-block" onclick="toggleAdvanced(false)">簡易モード</button>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>ライフ数</label>
-        <select id="maxLives">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3" selected>3</option>
-          <option value="5">5</option>
-          <option value="10">10</option>
-        </select>
-      </div>
-      <div class="form-group"></div>
-    </div>
-    <div class="form-group">
-      <label>使用可能な行（未選択＝すべて使用可能）</label>
-      <div id="kanaRowCheckboxes" class="kana-row-grid"></div>
-    </div>
-    <div class="form-group">
-      <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
-        <input type="checkbox" id="noDakuten" style="display:inline;width:auto;margin-right:.3rem">
-        濁音・半濁音禁止（がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ）
-      </label>
-    </div>
-    <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
   </div>
 
   <div id="inviteCard" class="card invite-card slide-up hidden" style="animation-delay:.05s">
@@ -511,6 +549,17 @@ input,select{font-family:inherit;font-size:1rem}
     <div class="invite-actions">
       <button class="btn btn-primary" onclick="joinInviteRoom()">参加する</button>
       <button class="btn btn-outline" onclick="clearInvite()">無視</button>
+    </div>
+  </div>
+
+  <div id="inviteRoomInfo" class="card slide-up hidden" style="animation-delay:.08s">
+    <h2>ルーム情報</h2>
+    <div class="invite-room-title" id="inviteRoomTitle"></div>
+    <div class="invite-room-rules" id="inviteRoomRules"></div>
+    <div class="invite-room-host" id="inviteRoomHost"></div>
+    <div class="invite-room-players">
+      <h3>👥 参加者</h3>
+      <ul id="inviteRoomPlayers" class="waiting-player-list"></ul>
     </div>
   </div>
 
@@ -692,17 +741,28 @@ function setInviteRoom(roomId) {
   $('inviteCard').classList.remove('hidden');
 }
 
+function clearInviteRoomInfo() {
+  $('inviteRoomInfo').classList.add('hidden');
+  $('inviteRoomTitle').textContent = '';
+  $('inviteRoomRules').innerHTML = '';
+  $('inviteRoomHost').textContent = '';
+  $('inviteRoomPlayers').innerHTML = '';
+}
+
 function clearInvite() {
   inviteRoomId = '';
   const url = new URL(window.location.href);
   url.searchParams.delete('room');
   window.history.replaceState({}, '', url.toString());
   $('inviteCard').classList.add('hidden');
+  clearInviteRoomInfo();
 }
 
 function joinInviteRoom() {
   if (!inviteRoomId) return;
   joinRoom(inviteRoomId);
+  $('inviteCard').classList.add('hidden');
+  $('inviteRoomInfo').classList.add('hidden');
 }
 
 function copyRoomLink() {
@@ -725,6 +785,7 @@ function handleMessage(msg) {
     case 'room_joined': onJoined(msg); break;
     case 'player_joined': onPlayerJoined(msg.player); break;
     case 'player_left': onPlayerLeft(msg.player); break;
+    case 'player_list': onPlayerList(msg); break;
     case 'game_started': onGameStarted(msg); break;
     case 'word_accepted': onNewWord(msg); break;
     case 'answer_rejected': onInvalid(msg.message); break;
@@ -766,6 +827,14 @@ function renderKanaRowCheckboxes() {
   });
 }
 
+function toggleAdvanced(show) {
+  const simple = $('roomCreateSimple');
+  const advanced = $('roomCreateAdvanced');
+  if (!simple || !advanced) return;
+  simple.classList.toggle('hidden', show);
+  advanced.classList.toggle('hidden', !show);
+}
+
 function getSelectedKanaRows() {
   const checkboxes = document.querySelectorAll('#kanaRowCheckboxes input[type=checkbox]:checked');
   return Array.from(checkboxes).map(cb => cb.value);
@@ -789,7 +858,7 @@ function renderRoomList(rooms) {
     const roomLink = getRoomLink(r.id);
     li.innerHTML = `
       <div class="room-info">
-        <a class="room-name" href="${esc(roomLink)}" onclick="event.preventDefault(); joinRoom('${esc(r.id)}');">${esc(r.name)}</a>
+        <a class="room-name" href="${esc(roomLink)}" onclick="event.preventDefault(); showInviteRoomPreview('${esc(r.id)}');">${esc(r.name)}</a>
         <div class="room-meta">
           <span>👥 ${playerCount}人</span>
           <span>🏷️ ${esc(genreLabel)}</span>
@@ -797,7 +866,7 @@ function renderRoomList(rooms) {
         </div>
       </div>
       <div class="room-actions">
-        <button class="btn btn-primary" onclick="joinRoom('${esc(r.id)}')"
+        <button class="btn btn-primary" onclick="showInviteRoomPreview('${esc(r.id)}')"
           ${r.status === 'playing' ? 'disabled style="opacity:.5"' : ''}>参加</button>
         <button class="btn btn-outline" onclick="copyRoomLinkById('${esc(r.id)}')">リンク</button>
       </div>`;
@@ -837,6 +906,73 @@ function joinRoom(roomId) {
   const name = getName(); if (!name) return;
   myName = name;
   send({ type: 'join', name, roomId });
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', roomId);
+  window.history.replaceState({}, '', url.toString());
+}
+
+function buildRoomBadges(room) {
+  const s = room.settings || {};
+  let badges = [];
+  if (room.owner) badges.push(`👑 ホスト: ${esc(room.owner)}`);
+  if (s.genre) badges.push(`🏷️ ${esc(s.genre)}`);
+  if (s.minLen > 1) badges.push(`最少${s.minLen}文字`);
+  if (s.maxLen > 0) badges.push(`最大${s.maxLen}文字`);
+  if (s.timeLimit > 0) badges.push(`⏱️ ${s.timeLimit}秒`);
+  if (s.allowedRows && s.allowedRows.length > 0) badges.push(`🎯 ${s.allowedRows.map(esc).join('・')}`);
+  if (s.noDakuten) badges.push('🚫 濁音・半濁音禁止');
+  if (s.maxLives || s.maxLives === 0) badges.push(`❤️ ライフ${s.maxLives || 3}`);
+  const meta = room.playerCount !== undefined ? `👥 ${room.playerCount}人` : '';
+  return [meta, ...badges].filter(Boolean).map(b => `<span class="rule-badge">${b}</span>`).join('');
+}
+
+function renderRoomInfo(room) {
+  if (!room) return;
+  $('gameRoomTitle').textContent = room.name || 'ルーム';
+  $('gameRules').innerHTML = buildRoomBadges(room);
+}
+
+function renderInviteRoomInfo(room) {
+  if (!room) return;
+  $('inviteRoomInfo').classList.remove('hidden');
+  $('inviteRoomTitle').textContent = room.name || 'ルーム';
+  $('inviteRoomRules').innerHTML = buildRoomBadges(room);
+  $('inviteRoomHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
+  const players = room.players || [];
+  const list = $('inviteRoomPlayers');
+  list.innerHTML = '';
+  if (!players.length) {
+    list.innerHTML = '<li class="waiting-empty">参加者なし</li>';
+  } else {
+    players.forEach(name => {
+      const li = document.createElement('li');
+      li.innerHTML = esc(name) + (name === room.owner ? ' <span class="owner-badge">ホスト</span>' : '');
+      list.appendChild(li);
+    });
+  }
+}
+
+function prepareWaitingRoom(room) {
+  currentRoomId = room.id || '';
+  currentSettings = room.settings || {};
+  roomOwner = room.owner || '';
+  showView('game');
+  $('historyList').innerHTML = '';
+  $('playerList').innerHTML = '';
+  $('messageList').innerHTML = '';
+  waitingPlayers = room.players || [];
+  currentLives = {};
+  maxLives = currentSettings.maxLives || 3;
+  currentTurn = '';
+  turnOrder = [];
+  isVoteActive = false;
+  showActiveGame(false);
+  $('playAgainBtn')?.classList.remove('hidden');
+  $('playAgainWait')?.classList.add('hidden');
+  $('gameOver').classList.add('hidden');
+  renderRoomInfo(room);
+  renderInviteRoomInfo(room);
+  updateWaitingRoom();
 }
 
 function copyRoomLinkById(roomId) {
@@ -880,19 +1016,45 @@ function onJoined(msg) {
   if (inviteRoomId && inviteRoomId === currentRoomId) {
     clearInvite();
   }
+  renderInviteRoomInfo({
+    id: currentRoomId,
+    name: currentSettings.name || 'ルーム',
+    owner: roomOwner,
+    playerCount: waitingPlayers.length,
+    settings: currentSettings,
+    players: waitingPlayers
+  });
+}
+
+function onPlayerList(msg) {
+  if (!currentRoomId) return;
+  waitingPlayers = msg.players || [];
+  updateWaitingRoom();
+  renderInviteRoomInfo({
+    id: currentRoomId,
+    name: currentSettings.name || 'ルーム',
+    owner: roomOwner,
+    playerCount: waitingPlayers.length,
+    settings: currentSettings,
+    players: waitingPlayers
+  });
 }
 
 function updateWaitingRoom() {
   const list = $('waitingPlayerList');
   if (!list) return;
   list.innerHTML = '';
-  waitingPlayers.forEach(name => {
-    const li = document.createElement('li');
-    li.innerHTML = esc(name)
-      + (name === roomOwner ? ' <span class="owner-badge">ホスト</span>' : '')
-      + (name === myName ? ' 👈' : '');
-    list.appendChild(li);
-  });
+  if (!waitingPlayers.length) {
+    list.innerHTML = '<li class="waiting-empty">参加者なし</li>';
+  } else {
+    waitingPlayers.forEach(name => {
+      const li = document.createElement('li');
+      li.innerHTML = esc(name)
+        + (name === roomOwner ? ' <span class="owner-badge">ホスト</span>' : '')
+        + (name === myName ? ' 👈' : '');
+      list.appendChild(li);
+    });
+  }
   // Show/hide start button based on ownership
   const isOwner = myName === roomOwner;
   $('startBtn').classList.toggle('hidden', !isOwner);
@@ -1012,6 +1174,14 @@ function onPlayerLeft(name) {
   // Update waiting room
   waitingPlayers = waitingPlayers.filter(n => n !== name);
   updateWaitingRoom();
+  if (currentRoomId && waitingPlayers.length === 0) {
+    setTimeout(() => {
+      if (currentRoomId && waitingPlayers.length === 0) {
+        showView('lobby');
+        refreshRooms();
+      }
+    }, 500);
+  }
 }
 
 function startGame() { send({ type: 'start_game' }); }
@@ -1177,9 +1347,36 @@ function handleInviteFromURL() {
   const roomId = params.get('room');
   if (roomId) {
     setInviteRoom(roomId);
+    loadInviteRoomInfo(roomId, true);
   } else {
     $('inviteCard').classList.add('hidden');
+    clearInviteRoomInfo();
   }
+}
+
+function loadInviteRoomInfo(roomId, showPreviewOnly) {
+  if (!roomId) return;
+  fetch(`/room/${encodeURIComponent(roomId)}`)
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (!data) return;
+      if (showPreviewOnly) {
+        renderInviteRoomInfo(data);
+        return;
+      }
+      prepareWaitingRoom(data);
+      renderInviteRoomInfo(data);
+    })
+    .catch(() => {});
+}
+
+function showInviteRoomPreview(roomId) {
+  setInviteRoom(roomId);
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', roomId);
+  window.history.replaceState({}, '', url.toString());
+  loadInviteRoomInfo(roomId, true);
+  $('inviteRoomInfo').classList.remove('hidden');
 }
 
 /* ========== MESSAGES ========== */
@@ -1199,6 +1396,7 @@ function addMessage(text, type) {
 function showView(view) {
   $('lobby').classList.toggle('hidden', view !== 'lobby');
   $('game').classList.toggle('hidden', view !== 'game');
+  document.body.classList.toggle('invite-view', view === 'game' && !myName);
 }
 
 function showScorePopup(player) {
@@ -1299,7 +1497,6 @@ function castVote(accept) {
 }
 
 function onPenalty(msg) {
-  const prevMyLives = currentLives[myName];
   if (msg.allLives) currentLives = msg.allLives;
   updateScoresAndLives(null, msg.allLives);
   updateMyLives(msg.player === myName);
@@ -1371,6 +1568,10 @@ document.addEventListener('keydown', e => {
 /* ========== INIT ========== */
 connect();
 handleInviteFromURL();
+const initialRoomId = new URLSearchParams(window.location.search).get('room');
+if (initialRoomId) {
+  loadInviteRoomInfo(initialRoomId);
+}
 window.addEventListener('popstate', handleInviteFromURL);
 // Refresh rooms periodically
 setInterval(() => {

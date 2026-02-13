@@ -207,6 +207,18 @@ func (r *Room) AddPlayer(p *Player) {
 	r.TurnOrder = append(r.TurnOrder, p.Name)
 }
 
+// PlayerNames returns a snapshot of current player names.
+func (r *Room) PlayerNames() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	names := make([]string, 0, len(r.Players))
+	for name := range r.Players {
+		names = append(names, name)
+	}
+	return names
+}
+
 // RemovePlayer removes a player from the room and returns the remaining count.
 func (r *Room) RemovePlayer(name string) int {
 	r.mu.Lock()
