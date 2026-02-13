@@ -4,34 +4,34 @@
    ========================================================================== */
 
 /* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap");
 
 /* ==========================================================================
    §1  CSS Custom Properties
    ========================================================================== */
 [data-theme="typo"] {
-  --primary:       #111;
-  --primary-light:  #333;
-  --primary-dark:   #000;
-  --accent:        #e00;
-  --accent-light:  #e00;
-  --danger:        #e00;
-  --success:       #111;
-  --bg:            #fafafa;
-  --surface:       #fafafa;
-  --surface2:      #f0f0f0;
-  --text:          #111;
-  --text2:         #666;
-  --text3:         #999;
-  --radius:        0px;
-  --shadow:        none;
+  --primary: #111;
+  --primary-light: #333;
+  --primary-dark: #000;
+  --accent: #e00;
+  --accent-light: #e00;
+  --danger: #e00;
+  --success: #111;
+  --bg: #fafafa;
+  --surface: #fafafa;
+  --surface2: #f0f0f0;
+  --text: #111;
+  --text2: #666;
+  --text3: #999;
+  --radius: 0px;
+  --shadow: none;
 }
 
 /* ==========================================================================
    §2  Base Elements
    ========================================================================== */
 [data-theme="typo"] body {
-  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  font-family: "Zen Kaku Gothic New", "Noto Sans JP", sans-serif;
   font-weight: 300;
   background: #fafafa;
   color: #111;
@@ -45,13 +45,13 @@
 }
 
 [data-theme="typo"] button {
-  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  font-family: "Zen Kaku Gothic New", "Noto Sans JP", sans-serif;
   border-radius: 0;
 }
 
 [data-theme="typo"] input,
 [data-theme="typo"] select {
-  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  font-family: "Zen Kaku Gothic New", "Noto Sans JP", sans-serif;
 }
 
 /* ==========================================================================
@@ -83,8 +83,14 @@
 }
 
 @keyframes typo-fade-up {
-  0%   { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-40px); }
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
 }
 
 /* ==========================================================================
@@ -102,38 +108,8 @@
   margin: 0 auto;
 }
 
-/* Top bar: Vol. 1 — 2025 | ことばの連鎖 */
-[data-theme="typo"] .header::before {
-  content: 'Vol. 1 — 2025';
-  display: block;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
-  font-weight: 300;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  color: #666;
-  text-align: left;
-  padding: 1.5rem 0 0.8rem;
-}
-
-[data-theme="typo"] .header::after {
-  content: 'ことばの連鎖';
-  position: absolute;
-  top: 1.5rem;
-  right: 0;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
-  font-weight: 300;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  color: #666;
-  height: auto;
-  width: auto;
-  background: none;
-  border-radius: 0;
-  left: auto;
-}
-
 [data-theme="typo"] .header h1 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: clamp(4rem, 12vw, 8rem);
   font-weight: 400;
   letter-spacing: 0.4em;
@@ -154,7 +130,7 @@
 }
 
 [data-theme="typo"] .header p {
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   font-size: 0.78rem;
   letter-spacing: 0.2em;
@@ -168,7 +144,7 @@
 }
 
 [data-theme="typo"] .header p::after {
-  content: '日本語しりとりオンライン対戦 — Word Chain Game';
+  content: "日本語しりとりオンライン対戦 — Word Chain Game";
   font-size: 0.78rem;
   letter-spacing: 0.15em;
 }
@@ -187,7 +163,7 @@
 }
 
 [data-theme="typo"] .card h2 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: 1.3rem;
   font-weight: 700;
   color: #111;
@@ -208,8 +184,8 @@
 }
 
 [data-theme="typo"] #lobbyCreateCard::before {
-  content: '02';
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  content: "02";
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   font-size: 4.5rem;
   color: #ddd;
@@ -219,7 +195,7 @@
 }
 
 [data-theme="typo"] #lobbyCreateCard > h2 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: 1.5rem;
   font-weight: 700;
   border-bottom: none;
@@ -243,7 +219,7 @@
 [data-theme="typo"] .rules-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-size: 0.85rem;
   font-weight: 300;
 }
@@ -265,7 +241,7 @@
 }
 
 [data-theme="typo"] .rules-desc {
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-size: 0.82rem;
   font-weight: 300;
   color: #999;
@@ -273,7 +249,7 @@
   margin-top: 1.2rem;
 }
 
-@media(max-width:700px) {
+@media (max-width: 700px) {
   [data-theme="typo"] .create-room-layout {
     grid-template-columns: 1fr;
   }
@@ -283,7 +259,7 @@
    §6  Forms — Underline Inputs
    ========================================================================== */
 [data-theme="typo"] .form-group label {
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.15em;
@@ -315,10 +291,13 @@
    ========================================================================== */
 [data-theme="typo"] .btn {
   border-radius: 0;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 500;
   letter-spacing: 0.1em;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
   position: relative;
   overflow: hidden;
 }
@@ -430,7 +409,7 @@
 }
 
 [data-theme="typo"] .current-word {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: clamp(3rem, 10vw, 6rem);
   font-weight: 400;
   color: #111;
@@ -443,7 +422,7 @@
    ========================================================================== */
 [data-theme="typo"] .turn-indicator {
   border-radius: 0;
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-weight: 400;
   letter-spacing: 0.05em;
 }
@@ -496,7 +475,7 @@
 }
 
 [data-theme="typo"] .timer-text {
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   color: #111;
 }
@@ -516,7 +495,7 @@
   border: none;
   border-bottom: 2px solid #111;
   border-radius: 0;
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: 1.3rem;
   font-weight: 400;
   background: transparent;
@@ -549,11 +528,11 @@
 }
 
 [data-theme="typo"] #lobby .player-name-section::before {
-  content: '01';
+  content: "01";
   position: absolute;
   top: 1.5rem;
   left: 0;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   font-size: 4rem;
   color: #ddd;
@@ -562,12 +541,12 @@
 
 /* Left column: number + title + description as one block */
 [data-theme="typo"] #lobby .player-name-section::before {
-  content: '01';
+  content: "01";
   position: static;
   grid-column: 1;
   grid-row: 1;
   align-self: start;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   font-size: 4.5rem;
   color: #ddd;
@@ -575,7 +554,7 @@
 }
 
 [data-theme="typo"] #lobby .player-name-section::after {
-  content: '参加する';
+  content: "参加する";
   display: block;
   grid-column: 1;
   grid-row: 2;
@@ -584,7 +563,7 @@
   height: auto;
   background: none;
   border-radius: 0;
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: 1.3rem;
   font-weight: 700;
   color: #111;
@@ -600,7 +579,7 @@
 }
 
 [data-theme="typo"] #lobby .player-name-desc p {
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-size: 0.82rem;
   font-weight: 300;
   color: #999;
@@ -618,7 +597,7 @@
 
 [data-theme="typo"] #lobby .player-name-label {
   display: block !important;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.15em;
@@ -627,7 +606,7 @@
 }
 
 [data-theme="typo"] #lobby .player-name-section input {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: 1.3rem;
   font-weight: 400;
   letter-spacing: 0.1em;
@@ -649,10 +628,10 @@
 [data-theme="typo"] #lobby .player-name-section input::placeholder {
   color: #ccc;
   letter-spacing: 0.1em;
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
 }
 
-@media(max-width:700px) {
+@media (max-width: 700px) {
   [data-theme="typo"] #lobby .player-name-section {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -676,7 +655,7 @@
 }
 
 [data-theme="typo"] #lobbyRoomsCard > h2 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-size: 1.5rem;
   font-weight: 700;
   border-bottom: 1px solid #ddd;
@@ -715,7 +694,7 @@
 }
 
 [data-theme="typo"] .room-name {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-weight: 700;
   font-size: 1.2rem;
   color: #111;
@@ -731,19 +710,19 @@
   color: #999;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
 }
 
 [data-theme="typo"] .no-rooms {
   color: #999;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   letter-spacing: 0.05em;
   grid-column: 1 / -1;
 }
 
-@media(max-width:700px) {
+@media (max-width: 700px) {
   [data-theme="typo"] .room-list {
     grid-template-columns: 1fr;
   }
@@ -766,7 +745,9 @@
   border: 1px solid #111;
   color: #111;
   font-weight: 400;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 [data-theme="typo"] .kana-row-chip:hover {
@@ -804,7 +785,7 @@
 }
 
 [data-theme="typo"] .history-word {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-weight: 700;
   color: #111;
 }
@@ -870,7 +851,7 @@
 }
 
 [data-theme="typo"] .invite-room-title {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   color: #111;
 }
 
@@ -882,7 +863,7 @@
    §19  Waiting Players
    ========================================================================== */
 [data-theme="typo"] .waiting-players h3 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   color: #111;
   font-weight: 400;
 }
@@ -976,7 +957,7 @@
 }
 
 [data-theme="typo"] .game-over-card h2 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-weight: 700;
   color: #111;
   font-size: 1.8rem;
@@ -1020,7 +1001,7 @@
 [data-theme="typo"] .game-over-history-toggle {
   border-radius: 0;
   border: 1px solid #ddd;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 400;
 }
 
@@ -1033,7 +1014,7 @@
 }
 
 [data-theme="typo"] .game-over-history-word {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   color: #111;
 }
 
@@ -1100,7 +1081,7 @@
 }
 
 [data-theme="typo"] .vote-card h3 {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   color: #111;
   font-weight: 400;
   letter-spacing: 0.05em;
@@ -1111,7 +1092,7 @@
 }
 
 [data-theme="typo"] .vote-word {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-weight: 400;
   color: #111;
   letter-spacing: 0.1em;
@@ -1132,7 +1113,7 @@
    ========================================================================== */
 [data-theme="typo"] .score-popup {
   color: #111;
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   font-weight: 700;
 }
 
@@ -1140,7 +1121,7 @@
    §27  Rebuttal
    ========================================================================== */
 [data-theme="typo"] .rebuttal-label {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   color: #111;
   font-weight: 400;
 }
@@ -1190,7 +1171,7 @@
    §30  Game Header
    ========================================================================== */
 [data-theme="typo"] .room-title {
-  font-family: 'Shippori Mincho B1', serif;
+  font-family: "Shippori Mincho B1", serif;
   color: #111;
   font-weight: 400;
   letter-spacing: 0.05em;
@@ -1285,18 +1266,18 @@
   margin-top: 1.5rem;
 }
 [data-theme="typo"] .theme-toggle {
-  border-color: rgba(0,0,0,.2);
+  border-color: rgba(0, 0, 0, 0.2);
   background: transparent;
 }
 [data-theme="typo"] .theme-toggle:hover {
-  border-color: rgba(0,0,0,.5);
-  background: rgba(0,0,0,.04);
+  border-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.04);
 }
 [data-theme="typo"] .theme-panel {
   background: #fafafa;
   border: 1px solid #ddd;
   border-radius: 0;
-  box-shadow: 0 4px 20px rgba(0,0,0,.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 [data-theme="typo"] .theme-panel::before {
   background: #fafafa;
