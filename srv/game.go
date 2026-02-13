@@ -565,10 +565,7 @@ func (r *Room) GetState() map[string]any {
 		"currentWord": r.CurrentWord,
 		"status":      r.Status,
 	}
-	if r.CurrentWord != "" {
-		hiragana := toHiragana(r.CurrentWord)
-		state["nextChar"] = string(getLastChar(hiragana))
-	}
+
 	if r.Settings.TimeLimit > 0 {
 		state["timeLeft"] = r.timerLeft
 	}

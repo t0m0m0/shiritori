@@ -311,7 +311,6 @@ func (s *Server) handleStartGame(room *Room) {
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "game_started",
 		"currentWord": "",
-		"nextChar":    "",
 		"history":     []WordEntry{},
 		"timeLimit":   room.Settings.TimeLimit,
 		"currentTurn": currentTurn,
@@ -432,9 +431,6 @@ func (s *Server) broadcastVoteResult(room *Room, word, playerName string, accept
 }
 
 func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
-	hiragana := toHiragana(word)
-	nextChar := getLastChar(hiragana)
-
 	room.mu.Lock()
 	nextTurn := ""
 	if len(room.TurnOrder) > 0 {
@@ -446,7 +442,6 @@ func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
 		"type":        "word_accepted",
 		"word":        word,
 		"player":      playerName,
-		"nextChar":    string(nextChar),
 		"currentWord": word,
 		"scores":      room.GetScores(),
 		"history":     room.History,

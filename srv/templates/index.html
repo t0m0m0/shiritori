@@ -148,14 +148,6 @@ input,select{font-family:inherit;font-size:1rem}
   font-size:3rem;font-weight:900;color:var(--text);
   animation:wordAppear .5s ease both;letter-spacing:.1em;
 }
-.next-char-area{margin-top:1rem}
-.next-char-label{font-size:.8rem;color:var(--text2)}
-.next-char{
-  display:inline-block;font-size:2rem;font-weight:900;
-  color:#fff;background:var(--primary);min-width:3.2rem;height:3.2rem;
-  line-height:3.2rem;border-radius:3.2rem;margin-top:.3rem;padding:0 .6rem;
-  animation:pulse 2s ease infinite;white-space:nowrap;
-}
 
 /* Timer */
 .timer-bar{height:6px;background:var(--surface2);border-radius:3px;margin-bottom:1rem;overflow:hidden}
@@ -261,7 +253,6 @@ input,select{font-family:inherit;font-size:1rem}
 @media(max-width:500px){
   .header h1{font-size:1.6rem}
   .current-word{font-size:2.2rem}
-  .next-char{font-size:1.5rem;width:2.5rem;height:2.5rem;line-height:2.5rem}
   .form-row{grid-template-columns:1fr}
   .card{padding:1rem}
 }
@@ -455,10 +446,7 @@ input,select{font-family:inherit;font-size:1rem}
     <div class="current-word-area">
       <div class="current-word-label">現在のことば</div>
       <div class="current-word" id="currentWord">ー</div>
-      <div class="next-char-area">
-        <div class="next-char-label">次の文字</div>
-        <div class="next-char" id="nextChar">？</div>
-      </div>
+
     </div>
 
     <div id="timerSection" class="hidden">
@@ -649,7 +637,7 @@ function onJoined(msg) {
   updateWaitingRoom();
   if (msg.currentWord && msg.status === 'playing') {
     showActiveGame(true);
-    setCurrentWord(msg.currentWord, msg.nextChar || '');
+    setCurrentWord(msg.currentWord);
     updateTurnDisplay();
   } else {
     showActiveGame(false);
@@ -720,15 +708,9 @@ function updateTurnDisplay() {
   }
 }
 
-function setCurrentWord(word, nextChar) {
+function setCurrentWord(word) {
   const el = $('currentWord');
-  if (word) {
-    el.textContent = word;
-    $('nextChar').textContent = nextChar || '?';
-  } else {
-    el.textContent = '―';
-    $('nextChar').textContent = '自由';
-  }
+  el.textContent = word || '―';
   el.style.animation = 'none'; el.offsetHeight; el.style.animation = '';
 }
 
@@ -785,7 +767,7 @@ function startGame() { send({ type: 'start_game' }); }
 function onGameStarted(msg) {
   showActiveGame(true);
   $('historyList').innerHTML = '';
-  setCurrentWord(msg.currentWord || msg.firstWord || '', msg.nextChar || '');
+  setCurrentWord(msg.currentWord || msg.firstWord || '');
   if (msg.turnOrder) turnOrder = msg.turnOrder;
   if (msg.currentTurn) currentTurn = msg.currentTurn;
   updateTurnDisplay();
@@ -812,7 +794,7 @@ function submitAnswer() {
 }
 
 function onNewWord(msg) {
-  setCurrentWord(msg.word, msg.nextChar);
+  setCurrentWord(msg.word);
   addHistoryItem(msg.word, msg.player);
   if (msg.scores) updateScores(msg.scores);
   if (msg.currentTurn) currentTurn = msg.currentTurn;
