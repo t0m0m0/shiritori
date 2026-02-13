@@ -1,26 +1,24 @@
-package srv
-
-const resultPageHTML = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>%s</title>
+<title>{{.Title}}</title>
 
 <!-- OGP -->
-<meta property="og:title" content="%s">
-<meta property="og:description" content="%s">
-<meta property="og:image" content="%s">
-<meta property="og:url" content="%s">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:image" content="{{.OGPURL}}">
+<meta property="og:url" content="{{.PageURL}}">
 <meta property="og:type" content="website">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="%s">
-<meta name="twitter:description" content="%s">
-<meta name="twitter:image" content="%s">
+<meta name="twitter:title" content="{{.Title}}">
+<meta name="twitter:description" content="{{.Description}}">
+<meta name="twitter:image" content="{{.OGPURL}}">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,15 +41,15 @@ body{
   font-family:var(--font-body);
   background:var(--bg);
   background-image:
-    radial-gradient(ellipse at 20%% 50%%,rgba(194,58,34,.018) 0%%,transparent 70%%),
-    radial-gradient(ellipse at 80%% 20%%,rgba(61,107,94,.018) 0%%,transparent 70%%);
+    radial-gradient(ellipse at 20% 50%,rgba(194,58,34,.018) 0%,transparent 70%),
+    radial-gradient(ellipse at 80% 20%,rgba(61,107,94,.018) 0%,transparent 70%);
   color:var(--text);
   min-height:100dvh;line-height:1.7;
   position:relative;
 }
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:url("data:image/svg+xml,%%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%%3E%%3Cfilter id='n'%%3E%%3CfeTurbulence baseFrequency='.7' numOctaves='4' stitchTiles='stitch'/%%3E%%3C/filter%%3E%%3Crect width='100%%25' height='100%%25' filter='url(%%23n)' opacity='.025'/%%3E%%3C/svg%%3E");
+  background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
 }
 .header{
   text-align:center;padding:2.5rem 1rem 2rem;
@@ -60,12 +58,12 @@ body::before{
   border-bottom:1px solid var(--border);
 }
 .header::after{
-  content:"";position:absolute;bottom:-1px;left:5%%;right:5%%;height:3px;
+  content:"";position:absolute;bottom:-1px;left:5%;right:5%;height:3px;
   background:linear-gradient(90deg,
-    transparent 0%%,rgba(44,36,32,.12) 4%%,rgba(44,36,32,.25) 12%%,
-    rgba(44,36,32,.3) 20%%,rgba(44,36,32,.15) 32%%,rgba(44,36,32,.3) 38%%,
-    rgba(44,36,32,.28) 55%%,transparent 57%%,rgba(44,36,32,.3) 60%%,
-    rgba(44,36,32,.25) 78%%,rgba(44,36,32,.1) 92%%,transparent 100%%);
+    transparent 0%,rgba(44,36,32,.12) 4%,rgba(44,36,32,.25) 12%,
+    rgba(44,36,32,.3) 20%,rgba(44,36,32,.15) 32%,rgba(44,36,32,.3) 38%,
+    rgba(44,36,32,.28) 55%,transparent 57%,rgba(44,36,32,.3) 60%,
+    rgba(44,36,32,.25) 78%,rgba(44,36,32,.1) 92%,transparent 100%);
   border-radius:2px;
 }
 .header h1{
@@ -176,7 +174,7 @@ body::before{
 </div>
 <div class="footer">し り と り — マルチプレイヤー</div>
 <script>
-const result = %s;
+const result = {{.ResultJSON}};
 const medals = ['🥇','🥈','🥉'];
 
 // Reason
@@ -217,4 +215,4 @@ history.forEach((h, i) => {
 });
 </script>
 </body>
-</html>`
+</html>

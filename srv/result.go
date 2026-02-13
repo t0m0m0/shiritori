@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -156,6 +158,15 @@ func (s *Server) loadResult(id string) (*GameResult, error) {
 	return &result, nil
 }
 
+// resultPageData is the data passed to result.html template.
+type resultPageData struct {
+	Title       string
+	Description string
+	OGPURL      string
+	PageURL     string
+	ResultJSON  template.JS
+}
+
 // HandleViewResultPage serves the result page with OGP meta tags.
 func (s *Server) HandleViewResultPage(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -198,17 +209,22 @@ func (s *Server) HandleViewResultPage(w http.ResponseWriter, r *http.Request) {
 
 	resultJSON, _ := json.Marshal(result)
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, resultPageHTML, 
-		esc(title), esc(title), esc(desc), esc(ogpURL), esc(pageURL),
-		esc(title), esc(desc), esc(ogpURL),
-		string(resultJSON))
-}
+	tmpl, err := template.ParseFiles(filepath.Join(s.TemplatesDir, "result.html"))
+	if err != nil {
+		slog.Error("parse result template", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
-func esc(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, `"`, "&quot;")
-	return s
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := resultPageData{
+		Title:       title,
+		Description: desc,
+		OGPURL:      ogpURL,
+		PageURL:     pageURL,
+		ResultJSON:  template.JS(resultJSON),
+	}
+	if err := tmpl.Execute(w, data); err != nil {
+		slog.Error("execute result template", "error", err)
+	}
 }
