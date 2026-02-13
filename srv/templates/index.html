@@ -910,6 +910,7 @@ function handleMessage(msg) {
     case 'rebuttal': onRebuttal(msg); break;
     case 'challenge_withdrawn': onChallengeWithdrawn(msg); break;
     case 'penalty': onPenalty(msg); break;
+    case 'turn_update': onTurnUpdate(msg); break;
     case 'room_state': onJoined(msg); break;
     case 'error': addMessage(msg.message, 'error'); break;
     default: console.log('Unknown message', msg);
@@ -1273,6 +1274,15 @@ function onPlayerJoined(name) {
   // Update waiting room
   if (!waitingPlayers.includes(name)) waitingPlayers.push(name);
   updateWaitingRoom();
+}
+
+function onTurnUpdate(msg) {
+  if (msg.turnOrder) turnOrder = msg.turnOrder;
+  if (msg.currentTurn) currentTurn = msg.currentTurn;
+  if (msg.lives) currentLives = msg.lives;
+  if (msg.maxLives) maxLives = msg.maxLives;
+  updateTurnDisplay();
+  renderPlayers(turnOrder, msg.scores || {}, currentLives);
 }
 
 function onPlayerLeft(name) {

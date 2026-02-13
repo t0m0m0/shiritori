@@ -352,6 +352,36 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Roo
 		"players": room.PlayerNames(),
 	}))
 
+	// If the game is already playing, broadcast updated turn order and lives to all
+	room.mu.Lock()
+	isPlaying := room.Status == "playing"
+	if isPlaying {
+		turnOrder := make([]string, len(room.TurnOrder))
+		copy(turnOrder, room.TurnOrder)
+		currentTurn := ""
+		if len(room.TurnOrder) > 0 && room.TurnIndex < len(room.TurnOrder) {
+			currentTurn = room.TurnOrder[room.TurnIndex]
+		}
+		lives := room.getLivesLocked()
+		maxLives := room.Settings.MaxLives
+		if maxLives <= 0 {
+			maxLives = 3
+		}
+		scores := room.getScoresLocked()
+		room.mu.Unlock()
+
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":        "turn_update",
+			"turnOrder":   turnOrder,
+			"currentTurn": currentTurn,
+			"lives":       lives,
+			"maxLives":    maxLives,
+			"scores":      scores,
+		}))
+	} else {
+		room.mu.Unlock()
+	}
+
 	return room, player, nil
 }
 

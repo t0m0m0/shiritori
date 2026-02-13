@@ -205,11 +205,31 @@ type RoomInfo struct {
 }
 
 // AddPlayer adds a player to the room.
+// If the game is already playing, the player is inserted into TurnOrder
+// right after the last position so they participate from the next full round,
+// and their lives are initialized.
 func (r *Room) AddPlayer(p *Player) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Players[p.Name] = p
-	r.TurnOrder = append(r.TurnOrder, p.Name)
+
+	if r.Status == "playing" {
+		// Initialize lives for mid-game joiner
+		maxLives := r.Settings.MaxLives
+		if maxLives <= 0 {
+			maxLives = 3
+		}
+		p.Lives = maxLives
+		p.Score = 0
+
+		// Insert right after the current turn index so the new player
+		// gets their first turn at the end of the current round.
+		// Place them at the end of TurnOrder (they'll play after everyone
+		// who was already in the order).
+		r.TurnOrder = append(r.TurnOrder, p.Name)
+	} else {
+		r.TurnOrder = append(r.TurnOrder, p.Name)
+	}
 }
 
 // PlayerNames returns a snapshot of current player names.
