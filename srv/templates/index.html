@@ -272,8 +272,8 @@ input,select{font-family:inherit;font-size:1rem}
 }
 .game-over-card{
   background:var(--surface);border-radius:var(--radius);padding:2.5rem;
-  text-align:center;max-width:420px;width:90%;animation:popIn .5s ease both;
-  box-shadow:0 20px 60px rgba(0,0,0,.2);
+  text-align:center;max-width:480px;width:90%;animation:popIn .5s ease both;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;
 }
 .game-over-card h2{font-size:1.8rem;margin-bottom:.5rem;color:var(--danger)}
 .game-over-card h2::before{display:none}
@@ -288,6 +288,40 @@ input,select{font-family:inherit;font-size:1rem}
 .final-rank{width:2rem;text-align:center;font-weight:700;color:var(--primary)}
 .final-name{flex:1;text-align:left;margin-left:.5rem}
 .final-pts{font-weight:700;color:var(--primary)}
+
+/* ── Game Over History ── */
+.game-over-history{text-align:left;margin-bottom:1.5rem}
+.game-over-history-toggle{
+  background:none;border:1px solid var(--border);border-radius:8px;
+  padding:.5rem 1rem;cursor:pointer;width:100%;text-align:left;
+  font-size:.9rem;color:var(--text);display:flex;align-items:center;
+  justify-content:space-between;transition:background .2s;
+}
+.game-over-history-toggle:hover{background:var(--surface2)}
+.game-over-history-toggle .toggle-arrow{transition:transform .3s}
+.game-over-history-toggle.open .toggle-arrow{transform:rotate(180deg)}
+.game-over-history-body{
+  max-height:0;overflow:hidden;transition:max-height .3s ease;
+}
+.game-over-history-body.open{max-height:300px;overflow-y:auto}
+.game-over-history-body::-webkit-scrollbar{width:4px}
+.game-over-history-body::-webkit-scrollbar-thumb{background:var(--primary-light);border-radius:2px}
+.game-over-history-list{
+  list-style:none;padding:0;margin:.5rem 0 0;
+}
+.game-over-history-list li{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.35rem .5rem;border-bottom:1px solid var(--border);
+  font-size:.85rem;
+}
+.game-over-history-list li:last-child{border-bottom:none}
+.game-over-history-num{color:var(--text2);min-width:1.5rem;text-align:right;font-size:.75rem}
+.game-over-history-word{font-weight:600;color:var(--primary-dark)}
+.game-over-history-player{color:var(--text2);font-size:.75rem;margin-left:auto}
+.game-over-history-chain{
+  font-size:.8rem;color:var(--text2);margin-top:.75rem;
+  padding:.4rem .5rem;background:var(--surface2);border-radius:6px;
+}
 
 /* ── My lives display ── */
 .my-lives-display {
@@ -760,6 +794,16 @@ input,select{font-family:inherit;font-size:1rem}
     <h2>ゲーム終了！</h2>
     <p class="game-over-reason" id="gameOverReason"></p>
     <ul class="final-scores" id="finalScores"></ul>
+    <div class="game-over-history" id="gameOverHistory">
+      <button class="game-over-history-toggle" onclick="toggleGameOverHistory(this)">
+        <span>📜 履歴を見る（<span id="gameOverHistoryCount">0</span>語）</span>
+        <span class="toggle-arrow">▼</span>
+      </button>
+      <div class="game-over-history-body" id="gameOverHistoryBody">
+        <div class="game-over-history-chain" id="gameOverHistoryChain"></div>
+        <ul class="game-over-history-list" id="gameOverHistoryList"></ul>
+      </div>
+    </div>
     <button id="playAgainBtn" class="btn btn-primary btn-lg" onclick="playAgain()" style="margin-right:.5rem">🔄 もう一度</button>
     <button class="btn btn-outline btn-lg" onclick="backToLobby()">🏠 ロビーへ</button>
     <p id="playAgainWait" class="game-over-reason hidden">ホストの開始を待っています…</p>
@@ -1438,6 +1482,38 @@ function onGameOver(msg) {
   });
   clearInterval(timerInterval);
   $('timerSection').classList.add('hidden');
+
+  // Render history in game-over card
+  const history = msg.history || [];
+  $('gameOverHistoryCount').textContent = history.length;
+  const hList = $('gameOverHistoryList');
+  hList.innerHTML = '';
+  history.forEach((h, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="game-over-history-num">${i + 1}.</span>
+      <span class="game-over-history-word">${esc(h.word)}</span>
+      <span class="game-over-history-player">${esc(h.player)}</span>`;
+    hList.appendChild(li);
+  });
+  // Show word chain summary
+  const chain = history.map(h => h.word).join(' → ');
+  const chainEl = $('gameOverHistoryChain');
+  if (history.length > 0) {
+    chainEl.textContent = chain;
+    chainEl.style.display = '';
+  } else {
+    chainEl.style.display = 'none';
+  }
+  // Reset toggle state (collapsed)
+  const body = $('gameOverHistoryBody');
+  body.classList.remove('open');
+  const toggle = body.previousElementSibling;
+  toggle.classList.remove('open');
+}
+
+function toggleGameOverHistory(btn) {
+  btn.classList.toggle('open');
+  $('gameOverHistoryBody').classList.toggle('open');
 }
 
 function playAgain() {
