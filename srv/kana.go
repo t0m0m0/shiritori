@@ -230,3 +230,49 @@ func GetKanaRowNames() []string {
 	}
 	return names
 }
+
+// dakutenSet contains all hiragana characters with dakuten (濁点).
+var dakutenSet = map[rune]bool{
+	'が': true, 'ぎ': true, 'ぐ': true, 'げ': true, 'ご': true,
+	'ざ': true, 'じ': true, 'ず': true, 'ぜ': true, 'ぞ': true,
+	'だ': true, 'ぢ': true, 'づ': true, 'で': true, 'ど': true,
+	'ば': true, 'び': true, 'ぶ': true, 'べ': true, 'ぼ': true,
+}
+
+// handakutenSet contains all hiragana characters with handakuten (半濁点).
+var handakutenSet = map[rune]bool{
+	'ぱ': true, 'ぴ': true, 'ぷ': true, 'ぺ': true, 'ぽ': true,
+}
+
+// IsDakuten returns true if the rune is a hiragana character with dakuten.
+func IsDakuten(r rune) bool {
+	return dakutenSet[r]
+}
+
+// IsHandakuten returns true if the rune is a hiragana character with handakuten.
+func IsHandakuten(r rune) bool {
+	return handakutenSet[r]
+}
+
+// ContainsDakutenHandakuten returns true if the hiragana string contains
+// any dakuten or handakuten characters.
+func ContainsDakutenHandakuten(hiragana string) bool {
+	for _, r := range hiragana {
+		if dakutenSet[r] || handakutenSet[r] {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateNoDakuten checks that a hiragana string contains no dakuten or
+// handakuten characters. Returns the first offending rune, or 0 if valid.
+func ValidateNoDakuten(hiragana string) rune {
+	for _, r := range hiragana {
+		if dakutenSet[r] || handakutenSet[r] {
+			return r
+		}
+	}
+	return 0
+}
+

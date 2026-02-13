@@ -434,6 +434,12 @@ input,select{font-family:inherit;font-size:1rem}
       <label>使用可能な行（未選択＝すべて使用可能）</label>
       <div id="kanaRowCheckboxes" class="kana-row-grid"></div>
     </div>
+    <div class="form-group">
+      <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
+        <input type="checkbox" id="noDakuten" style="display:inline;width:auto;margin-right:.3rem">
+        濁音・半濁音禁止（がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ）
+      </label>
+    </div>
     <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
   </div>
 
@@ -657,6 +663,7 @@ function createRoom() {
   const name = getName(); if (!name) return;
   myName = name;
   const allowedRows = getSelectedKanaRows();
+  const noDakuten = $('noDakuten').checked;
   send({
     type: 'create_room', name,
     settings: {
@@ -665,7 +672,8 @@ function createRoom() {
       maxLen: parseInt($('maxLen').value) || 0,
       genre: $('genre').value,
       timeLimit: parseInt($('timeLimit').value) || 0,
-      allowedRows: allowedRows.length > 0 ? allowedRows : undefined
+      allowedRows: allowedRows.length > 0 ? allowedRows : undefined,
+      noDakuten: noDakuten || undefined
     }
   });
 }
@@ -727,6 +735,7 @@ function renderRules() {
   if (s.maxLen > 0) badges.push(`最大${s.maxLen}文字`);
   if (s.timeLimit > 0) badges.push(`⏱️ ${s.timeLimit}秒`);
   if (s.allowedRows && s.allowedRows.length > 0) badges.push(`🎯 ${s.allowedRows.join('・')}`);
+  if (s.noDakuten) badges.push('🚫 濁音・半濁音禁止');
   $('gameRules').innerHTML = badges.map(b => `<span class="rule-badge">${b}</span>`).join('');
   timerMax = s.timeLimit || 0;
 }

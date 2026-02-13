@@ -18,6 +18,7 @@ type RoomSettings struct {
 	Genre       string   `json:"genre"`
 	TimeLimit   int      `json:"timeLimit"`
 	AllowedRows []string `json:"allowedRows,omitempty"` // e.g. ["あ行","か行"]; empty = all rows allowed
+	NoDakuten   bool     `json:"noDakuten,omitempty"`    // disallow dakuten/handakuten characters
 }
 
 // WordEntry records a word played in the game.
@@ -387,6 +388,13 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 	if len(r.Settings.AllowedRows) > 0 {
 		if badChar, badRow := ValidateAllowedRows(hiragana, r.Settings.AllowedRows); badChar != 0 {
 			return ValidateRejected, fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
+		}
+	}
+
+	// Check no dakuten/handakuten
+	if r.Settings.NoDakuten {
+		if badChar := ValidateNoDakuten(hiragana); badChar != 0 {
+			return ValidateRejected, fmt.Sprintf("「%c」は濁音・半濁音の文字です（濁音・半濁音禁止ルール）", badChar)
 		}
 	}
 
