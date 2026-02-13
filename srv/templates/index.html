@@ -122,6 +122,26 @@ input,select{font-family:inherit;font-size:1rem}
 .room-meta span{margin-right:.75rem}
 .no-rooms{text-align:center;color:var(--text2);padding:2rem;font-size:.95rem}
 
+.invite-banner{
+  background:var(--surface);border:1px dashed var(--primary-light);color:var(--text);
+  border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;
+  display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;
+  box-shadow:var(--shadow);font-size:.9rem;
+}
+.invite-banner strong{color:var(--primary)}
+.invite-banner .btn{padding:.4rem .9rem;font-size:.85rem}
+
+.invite-share{
+  background:var(--surface2);border-radius:10px;padding:.75rem 1rem;margin-top:.75rem;
+  display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;
+}
+.invite-share label{font-size:.8rem;color:var(--text2);min-width:70px}
+.invite-share input{
+  flex:1;min-width:180px;padding:.45rem .6rem;border:1px solid #e5e7eb;border-radius:6px;
+  background:#fff;font-size:.85rem;
+}
+.invite-share .btn{padding:.4rem .9rem;font-size:.85rem}
+
 /* ── Game Room ── */
 #game{position:relative}
 .game-header{
@@ -505,6 +525,18 @@ input,select{font-family:inherit;font-size:1rem}
     <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem" onclick="leaveRoom()">退出</button>
   </div>
 
+  <div id="inviteBanner" class="invite-banner hidden">
+    <div>
+      🔗 ルーム共有リンク：<strong id="inviteRoomCode">----</strong>
+    </div>
+    <button class="btn btn-outline" onclick="copyInviteLink()">リンクをコピー</button>
+  </div>
+  <div id="inviteShare" class="invite-share hidden">
+    <label>URL</label>
+    <input type="text" id="inviteUrl" readonly>
+    <button class="btn btn-outline" onclick="copyInviteLink()">コピー</button>
+  </div>
+
   <!-- Pre-game / waiting -->
   <div id="preGame" class="card start-area">
     <p class="waiting-text">プレイヤーを待っています…</p>
@@ -609,6 +641,7 @@ let hasVoted = false;
 let kanaRowNames = [];
 let currentLives = {};
 let maxLives = 3;
+let pendingRoomId = '';
 
 const $ = id => document.getElementById(id);
 
@@ -617,7 +650,12 @@ function connect() {
   if (ws && ws.readyState <= 1) return;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
-  ws.onopen = () => { console.log('WS connected'); refreshRooms(); send({ type: 'get_genres' }); };
+  ws.onopen = () => {
+    console.log('WS connected');
+    refreshRooms();
+    send({ type: 'get_genres' });
+    attemptAutoJoin();
+  };
   ws.onclose = () => { console.log('WS closed'); setTimeout(connect, 2000); };
   ws.onerror = e => console.error('WS error', e);
   ws.onmessage = e => handleMessage(JSON.parse(e.data));
@@ -714,6 +752,62 @@ function getName() {
   return name;
 }
 
+function updateInviteLink() {
+  if (!currentRoomId) {
+    $('inviteBanner')?.classList.add('hidden');
+    $('inviteShare')?.classList.add('hidden');
+    return;
+  }
+  const url = new URL(location.href);
+  url.searchParams.set('room', currentRoomId);
+  const inviteUrl = url.toString();
+  $('inviteUrl').value = inviteUrl;
+  $('inviteRoomCode').textContent = currentRoomId;
+  $('inviteBanner')?.classList.remove('hidden');
+  $('inviteShare')?.classList.remove('hidden');
+}
+
+function copyInviteLink() {
+  const link = $('inviteUrl').value;
+  if (!link) return;
+  navigator.clipboard?.writeText(link).then(() => {
+    addMessage('招待リンクをコピーしました', 'info');
+  }).catch(() => {
+    $('inviteUrl').select();
+    document.execCommand('copy');
+    addMessage('招待リンクをコピーしました', 'info');
+  });
+}
+
+function parseRoomFromUrl() {
+  const params = new URLSearchParams(location.search);
+  return (params.get('room') || '').trim();
+}
+
+function showInviteNotice() {
+  if (!pendingRoomId) return;
+  $('noRooms')?.insertAdjacentHTML('afterend',
+    `<div class="invite-banner" id="inviteNotice">
+      🔗 ルームID「${esc(pendingRoomId)}」に参加できます。名前を入力してください。
+    </div>`);
+}
+
+function clearInviteNotice() {
+  $('inviteNotice')?.remove();
+}
+
+function attemptAutoJoin() {
+  const roomId = parseRoomFromUrl();
+  if (!roomId) return;
+  pendingRoomId = roomId;
+  showInviteNotice();
+  if ($('playerName').value.trim()) {
+    joinRoom(roomId);
+    pendingRoomId = '';
+    clearInviteNotice();
+  }
+}
+
 function createRoom() {
   const name = getName(); if (!name) return;
   myName = name;
@@ -749,6 +843,7 @@ function onJoined(msg) {
   maxLives = msg.maxLives || currentSettings.maxLives || 3;
   showView('game');
   $('gameRoomTitle').textContent = currentSettings.name || 'ルーム';
+  updateInviteLink();
   renderRules();
   renderPlayers(msg.players || [], msg.scores || {}, currentLives);
   $('historyList').innerHTML = '';
@@ -1047,8 +1142,10 @@ function backToLobby() {
 function leaveRoom() {
   send({ type: 'leave_room' });
   currentRoomId = '';
+  updateInviteLink();
   showView('lobby');
   refreshRooms();
+  if (pendingRoomId) showInviteNotice();
 }
 
 /* ========== MESSAGES ========== */
@@ -1197,7 +1294,19 @@ $('answerInput')?.addEventListener('keydown', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !$('lobby').classList.contains('hidden')) {
-    // If in lobby and name filled, could create room
+    if (pendingRoomId) {
+      joinRoom(pendingRoomId);
+      pendingRoomId = '';
+      clearInviteNotice();
+    }
+  }
+});
+
+$('playerName')?.addEventListener('input', () => {
+  if (pendingRoomId && $('playerName').value.trim()) {
+    joinRoom(pendingRoomId);
+    pendingRoomId = '';
+    clearInviteNotice();
   }
 });
 
@@ -1207,6 +1316,9 @@ connect();
 setInterval(() => {
   if (!$('lobby').classList.contains('hidden')) refreshRooms();
 }, 5000);
+
+// Pre-fill room invite if URL has ?room=
+pendingRoomId = parseRoomFromUrl();
 </script>
 </body>
 </html>
