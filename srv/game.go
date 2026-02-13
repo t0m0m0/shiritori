@@ -340,16 +340,6 @@ func (r *Room) resetTimer() {
 	}
 }
 
-// ValidateResult represents the outcome of word validation.
-type ValidateResult int
-
-const (
-	ValidateOK       ValidateResult = iota // Word accepted
-	ValidateRejected                       // Word rejected (hard fail)
-	ValidateVote                           // Need genre vote
-	ValidatePenalty                        // Word accepted but player loses a life
-)
-
 // ValidateAndSubmitWord checks a word and applies it if valid.
 // Returns (result, message). If result is ValidateVote, a vote has been started.
 func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, string) {
