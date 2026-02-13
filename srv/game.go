@@ -726,9 +726,6 @@ func (r *Room) StartChallengeVote(challengerName string) (VoteInfo, error) {
 	if last.Player == challengerName {
 		return VoteInfo{}, fmt.Errorf("自分の単語には指摘できません")
 	}
-	if r.TurnOrder[r.TurnIndex] == challengerName {
-		return VoteInfo{}, fmt.Errorf("自分の番では指摘できません")
-	}
 	hiragana := toHiragana(last.Word)
 
 	r.pendingVote = &PendingVote{

@@ -693,6 +693,7 @@ let waitingPlayers = [];
 let voteTimerInterval = null;
 let hasVoted = false;
 let isVoteActive = false;
+let lastWordPlayer = '';
 let kanaRowNames = [];
 let currentLives = {};
 let maxLives = 3;
@@ -1147,7 +1148,7 @@ function updateTurnDisplay() {
   }
   const challengeBtn = $('challengeBtn');
   if (challengeBtn) {
-    const canChallenge = !isMyTurn && $('currentWord').textContent !== '―' && !isVoteActive;
+    const canChallenge = $('currentWord').textContent !== '―' && !isVoteActive && lastWordPlayer !== myName;
     challengeBtn.disabled = !canChallenge;
   }
 }
@@ -1227,6 +1228,7 @@ function onGameStarted(msg) {
   if (msg.lives) currentLives = msg.lives;
   if (msg.maxLives) maxLives = msg.maxLives;
   isVoteActive = false;
+  lastWordPlayer = '';
   updateMyLives();
   updateTurnDisplay();
   // Initialize timer display
@@ -1255,6 +1257,7 @@ function submitAnswer() {
 
 function onNewWord(msg) {
   setCurrentWord(msg.word);
+  lastWordPlayer = msg.player;
   addHistoryItem(msg.word, msg.player);
   if (msg.lives) currentLives = msg.lives;
   if (msg.scores || msg.lives) updateScoresAndLives(msg.scores, msg.lives);
@@ -1582,8 +1585,8 @@ function esc(str) {
 
 function requestChallenge() {
   if (isVoteActive) return;
-  if (currentTurn === myName) {
-    addMessage('自分の番では指摘できません', 'error');
+  if (lastWordPlayer === myName) {
+    addMessage('自分の単語には指摘できません', 'error');
     return;
   }
   send({ type: 'challenge' });
