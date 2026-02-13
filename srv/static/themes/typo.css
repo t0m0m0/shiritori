@@ -36,6 +36,12 @@
   background: #fafafa;
   color: #111;
   line-height: 1.8;
+  background-image: none;
+}
+
+[data-theme="typo"] body::before,
+[data-theme="typo"] body::after {
+  display: none !important;
 }
 
 [data-theme="typo"] button {
@@ -82,29 +88,60 @@
 }
 
 /* ==========================================================================
-   §4  Header — Pure Typography, No Decoration
+   §4  Header — Editorial Masthead
    ========================================================================== */
 [data-theme="typo"] .header {
   background: transparent;
   color: #111;
-  padding: 3rem 1rem 2rem;
+  padding: 0;
   text-align: center;
   position: relative;
   overflow: visible;
+  border-bottom: none;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Top bar: Vol. 1 — 2025 | ことばの連鎖 */
+[data-theme="typo"] .header::before {
+  content: 'Vol. 1 — 2025';
+  display: block;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: #666;
+  text-align: left;
+  padding: 1.5rem 0 0.8rem;
 }
 
 [data-theme="typo"] .header::after {
-  display: none;
+  content: 'ことばの連鎖';
+  position: absolute;
+  top: 1.5rem;
+  right: 0;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: #666;
+  height: auto;
+  width: auto;
+  background: none;
+  border-radius: 0;
+  left: auto;
 }
 
 [data-theme="typo"] .header h1 {
   font-family: 'Shippori Mincho B1', serif;
-  font-size: clamp(3rem, 8vw, 5rem);
+  font-size: clamp(4rem, 12vw, 8rem);
   font-weight: 400;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.4em;
   color: #111;
   text-shadow: none;
-  line-height: 1.2;
+  line-height: 1.4;
+  padding: 2.5rem 0 2rem;
+  border-top: 2px solid #111;
 }
 
 [data-theme="typo"] .header a {
@@ -119,11 +156,21 @@
 [data-theme="typo"] .header p {
   font-family: 'Zen Kaku Gothic New', sans-serif;
   font-weight: 300;
-  font-size: 0.8rem;
-  letter-spacing: 0.15em;
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
   color: #666;
   opacity: 1;
-  margin-top: 0.75rem;
+  margin: 0;
+  padding: 0.8rem 0;
+  border-top: 1px solid #ddd;
+  border-bottom: 2px solid #111;
+  font-size: 0;
+}
+
+[data-theme="typo"] .header p::after {
+  content: '日本語しりとりオンライン対戦 — Word Chain Game';
+  font-size: 0.78rem;
+  letter-spacing: 0.15em;
 }
 
 /* ==========================================================================
@@ -135,6 +182,7 @@
   box-shadow: none;
   padding: 1.5rem 0;
   margin-bottom: 0;
+  border: none;
   border-top: 2px solid #111;
 }
 
@@ -151,6 +199,32 @@
 
 [data-theme="typo"] .card h2::before {
   display: none;
+}
+
+/* Section 02: Create Room card */
+[data-theme="typo"] #lobbyCreateCard {
+  position: relative;
+  padding-top: 2rem;
+}
+
+[data-theme="typo"] #lobbyCreateCard::before {
+  content: '02';
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  font-size: 4.5rem;
+  color: #ddd;
+  line-height: 1;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+[data-theme="typo"] #lobbyCreateCard > h2 {
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 1.5rem;
 }
 
 /* ==========================================================================
@@ -191,7 +265,7 @@
   border-radius: 0;
   font-family: 'Zen Kaku Gothic New', sans-serif;
   font-weight: 500;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   transition: background 0.2s, color 0.2s, border-color 0.2s;
   position: relative;
   overflow: hidden;
@@ -199,6 +273,14 @@
 
 [data-theme="typo"] .btn:active {
   transform: none;
+}
+
+/* Create room button: narrower, left-aligned */
+[data-theme="typo"] #lobbyCreateCard .btn-block {
+  width: auto;
+  max-width: 280px;
+  padding: 1rem 2.5rem;
+  font-size: 0.9rem;
 }
 
 [data-theme="typo"] .btn-primary {
@@ -401,19 +483,107 @@
 }
 
 /* ==========================================================================
-   §12  Lobby — Player Name Input
+   §12  Lobby — Section 01: Player Name Input
    ========================================================================== */
+[data-theme="typo"] #lobby .player-name-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 2rem;
+  padding: 2.5rem 0 2rem;
+  border-top: 2px solid #111;
+  margin-top: 2rem;
+  position: relative;
+  text-align: left;
+}
+
+[data-theme="typo"] #lobby .player-name-section::before {
+  content: '01';
+  position: absolute;
+  top: 1.5rem;
+  left: 0;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  font-size: 4rem;
+  color: #ddd;
+  line-height: 1;
+}
+
+/* Left column: number + title + description as one block */
+[data-theme="typo"] #lobby .player-name-section::before {
+  content: '01';
+  position: static;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  font-size: 4.5rem;
+  color: #ddd;
+  line-height: 1;
+}
+
+[data-theme="typo"] #lobby .player-name-section::after {
+  content: '参加する';
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  position: static;
+  width: auto;
+  height: auto;
+  background: none;
+  border-radius: 0;
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.6;
+  left: auto;
+}
+
+/* Description text in left column */
+[data-theme="typo"] #lobby .player-name-desc {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+[data-theme="typo"] #lobby .player-name-desc p {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 300;
+  color: #999;
+  line-height: 1.9;
+  max-width: 280px;
+}
+
+/* Right column: label + input */
+[data-theme="typo"] #lobby .player-name-field {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  align-self: center;
+}
+
+[data-theme="typo"] #lobby .player-name-label {
+  display: block;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: #666;
+  margin-bottom: 0.3rem;
+}
+
 [data-theme="typo"] #lobby .player-name-section input {
   font-family: 'Shippori Mincho B1', serif;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 400;
   letter-spacing: 0.1em;
-  text-align: center;
+  text-align: left;
   border: none;
-  border-bottom: 2px solid #111;
+  border-bottom: 1px solid #111;
   border-radius: 0;
   background: transparent;
-  padding: 0.8rem 1rem;
+  padding: 0.6rem 0.2rem;
+  width: 100%;
 }
 
 [data-theme="typo"] #lobby .player-name-section input:focus {
@@ -423,48 +593,92 @@
 }
 
 [data-theme="typo"] #lobby .player-name-section input::placeholder {
-  color: #bbb;
+  color: #ccc;
   letter-spacing: 0.1em;
+  font-family: 'Shippori Mincho B1', serif;
+}
+
+@media(max-width:700px) {
+  [data-theme="typo"] #lobby .player-name-section {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding-top: 5rem;
+  }
+  [data-theme="typo"] #lobby .player-name-section input {
+    grid-column: 1;
+  }
+  [data-theme="typo"] #lobby .player-name-section::after {
+    max-width: 100%;
+    position: relative;
+    top: 0;
+  }
 }
 
 /* ==========================================================================
-   §13  Room List
+   §13  Room List — Two-column grid
    ========================================================================== */
+[data-theme="typo"] #lobbyRoomsCard {
+  border-top: 2px solid #111;
+}
+
+[data-theme="typo"] #lobbyRoomsCard > h2 {
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.7rem;
+  margin-bottom: 1.5rem;
+}
+
+[data-theme="typo"] .room-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
 [data-theme="typo"] .room-item {
   background: transparent;
   border-radius: 0;
-  border-bottom: 1px solid #ddd;
-  padding: 1rem 0;
+  border-bottom: none;
+  border-right: 1px solid #eee;
+  padding: 1.5rem 1.5rem 1.5rem 0;
   margin-bottom: 0;
   transition: opacity 0.3s;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+[data-theme="typo"] .room-item:nth-child(2n) {
+  border-right: none;
+  padding-left: 1.5rem;
+  padding-right: 0;
 }
 
 [data-theme="typo"] .room-item:hover {
   background: transparent;
   transform: none;
-  opacity: 0.6;
-}
-
-[data-theme="typo"] .room-item:last-child {
-  border-bottom: none;
+  opacity: 0.7;
 }
 
 [data-theme="typo"] .room-name {
   font-family: 'Shippori Mincho B1', serif;
   font-weight: 700;
+  font-size: 1.2rem;
   color: #111;
   letter-spacing: 0.03em;
 }
 
 [data-theme="typo"] .room-name:hover {
   text-decoration: none;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 [data-theme="typo"] .room-meta {
   color: #999;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
 }
 
 [data-theme="typo"] .no-rooms {
@@ -472,6 +686,21 @@
   font-family: 'Zen Kaku Gothic New', sans-serif;
   font-weight: 300;
   letter-spacing: 0.05em;
+  grid-column: 1 / -1;
+}
+
+@media(max-width:700px) {
+  [data-theme="typo"] .room-list {
+    grid-template-columns: 1fr;
+  }
+  [data-theme="typo"] .room-item {
+    border-right: none;
+    padding-left: 0;
+    border-bottom: 1px solid #eee;
+  }
+  [data-theme="typo"] .room-item:nth-child(2n) {
+    padding-left: 0;
+  }
 }
 
 /* ==========================================================================

@@ -608,7 +608,13 @@ input,select{font-family:inherit;font-size:1rem}
 <!-- ═══ LOBBY ═══ -->
 <div id="lobby" class="container fade-in">
   <div class="player-name-section">
-    <input type="text" id="playerName" placeholder="ユーザー名" maxlength="12" autocomplete="off">
+    <div class="player-name-desc">
+      <p>名前を入力して、ルームに参加するか、新しいルームを作成してください。</p>
+    </div>
+    <div class="player-name-field">
+      <label for="playerName" class="player-name-label">ユーザー名</label>
+      <input type="text" id="playerName" placeholder="名前を入力" maxlength="12" autocomplete="off">
+    </div>
   </div>
 
   <div id="lobbyCreateCard" class="card slide-up">
