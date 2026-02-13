@@ -1348,6 +1348,15 @@ function esc(str) {
   return d.innerHTML;
 }
 
+function requestChallenge() {
+  if (isVoteActive) return;
+  if (currentTurn === myName) {
+    addMessage('自分の番では指摘できません', 'error');
+    return;
+  }
+  send({ type: 'challenge' });
+}
+
 /* ========== KEYBOARD ========== */
 $('answerInput')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
@@ -1371,13 +1380,3 @@ setInterval(() => {
 </script>
 </body>
 </html>
-
-
-function requestChallenge() {
-  if (isVoteActive) return;
-  if (currentTurn === myName) {
-    addMessage('自分の番では指摘できません', 'error');
-    return;
-  }
-  send({ type: 'challenge' });
-}
