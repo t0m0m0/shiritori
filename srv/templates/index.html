@@ -146,6 +146,15 @@ input,select{font-family:inherit;font-size:1rem}
   font-size:.9rem;color:var(--text2);margin-top:.35rem;
 }
 
+.invite-room-summary{
+  background:var(--surface2);border-radius:10px;padding:.85rem 1rem;margin:.75rem 0 1rem;
+  display:flex;flex-direction:column;gap:.35rem;
+}
+.invite-room-name{font-weight:700;font-size:1.05rem;color:var(--primary)}
+.invite-room-meta{font-size:.85rem;color:var(--text2)}
+.invite-room-rules{display:flex;flex-wrap:wrap;gap:.4rem}
+.invite-room-rules .rule-badge{font-size:.7rem;padding:.2rem .5rem}
+
 /* ── Game Room ── */
 #game{position:relative}
 .game-header{
@@ -454,7 +463,11 @@ input,select{font-family:inherit;font-size:1rem}
 
   <div id="inviteJoinPanel" class="card hidden">
     <h2>招待ルームに参加</h2>
-    <p>ルームID：<strong id="inviteJoinRoomId">----</strong></p>
+    <div class="invite-room-summary" id="inviteRoomSummary">
+      <div class="invite-room-name" id="inviteJoinRoomName">ルーム</div>
+      <div class="invite-room-meta" id="inviteJoinRoomMeta"></div>
+      <div class="invite-room-rules" id="inviteJoinRoomRules"></div>
+    </div>
     <button id="inviteJoinBtn" class="btn btn-primary btn-block" onclick="joinInviteRoom()">このルームに参加</button>
   </div>
 
@@ -652,6 +665,7 @@ let kanaRowNames = [];
 let currentLives = {};
 let maxLives = 3;
 let pendingRoomId = '';
+let pendingRoomInfo = null;
 
 const $ = id => document.getElementById(id);
 
@@ -733,19 +747,26 @@ function renderRoomList(rooms) {
   const list = $('roomList');
   const noRooms = $('noRooms');
   list.innerHTML = '';
-  if (!rooms.length) { noRooms.classList.remove('hidden'); return; }
+  const matched = pendingRoomId ? rooms.find(r => r.id === pendingRoomId) : null;
+  pendingRoomInfo = matched || null;
+  if (!rooms.length) {
+    noRooms.classList.remove('hidden');
+    updateInviteJoinPanel();
+    return;
+  }
   noRooms.classList.add('hidden');
   rooms.forEach(r => {
     const li = document.createElement('li');
     li.className = 'room-item fade-in';
     const statusLabel = r.status === 'playing' ? '🎮 プレイ中' : '⏳ 待機中';
     const genreLabel = r.settings && r.settings.genre ? r.settings.genre : 'なし';
+    const playerCount = r.playerCount !== undefined ? r.playerCount : (r.players || 0);
     li.innerHTML = `
       <div class="room-info">
         <div class="room-name">${esc(r.name)}</div>
         <div class="room-meta">
-          <span>👥 ${r.players || 0}人</span>
-          <span>🏷️ ${genreLabel}</span>
+          <span>👥 ${playerCount}人</span>
+          <span>🏷️ ${esc(genreLabel)}</span>
           <span>${statusLabel}</span>
         </div>
       </div>
@@ -753,6 +774,7 @@ function renderRoomList(rooms) {
         ${r.status === 'playing' ? 'disabled style="opacity:.5"' : ''}>参加</button>`;
     list.appendChild(li);
   });
+  updateInviteJoinPanel();
 }
 
 function getName() {
@@ -801,7 +823,19 @@ function updateInviteJoinPanel() {
   if (!showInvite) {
     panel.classList.add('hidden');
   } else {
-    $('inviteJoinRoomId').textContent = pendingRoomId;
+    const summary = pendingRoomInfo;
+    $('inviteJoinRoomName').textContent = summary?.name ? summary.name : '招待ルーム';
+    if (!summary) {
+      $('inviteJoinRoomMeta').textContent = 'ルーム情報を取得中…';
+      $('inviteJoinRoomRules').innerHTML = '';
+    } else {
+      const metaParts = [];
+      if (summary?.playerCount !== undefined) metaParts.push(`👥 ${summary.playerCount}人`);
+      if (summary?.owner) metaParts.push(`👑 ${esc(summary.owner)}`);
+      if (summary?.status) metaParts.push(summary.status === 'playing' ? '🎮 プレイ中' : '⏳ 待機中');
+      $('inviteJoinRoomMeta').textContent = metaParts.join(' ・ ');
+      $('inviteJoinRoomRules').innerHTML = buildRuleBadges(summary?.settings || {});
+    }
     panel.classList.remove('hidden');
   }
   $('lobbyCreateCard')?.classList.toggle('hidden', showInvite);
@@ -860,6 +894,8 @@ function onJoined(msg) {
   roomOwner = msg.owner || '';
   currentLives = msg.lives || {};
   maxLives = msg.maxLives || currentSettings.maxLives || 3;
+  pendingRoomId = '';
+  pendingRoomInfo = null;
   showView('game');
   $('gameRoomTitle').textContent = currentSettings.name || 'ルーム';
   updateInviteLink();
@@ -903,17 +939,22 @@ function updateWaitingRoom() {
   $('waitOwnerText').classList.toggle('hidden', isOwner);
 }
 
-function renderRules() {
-  const s = currentSettings;
+function buildRuleBadges(settings) {
+  const s = settings || {};
   let badges = [];
-  if (s.genre) badges.push(`🏷️ ${s.genre}`);
+  if (s.genre) badges.push(`🏷️ ${esc(s.genre)}`);
   if (s.minLen > 1) badges.push(`最少${s.minLen}文字`);
   if (s.maxLen > 0) badges.push(`最大${s.maxLen}文字`);
   if (s.timeLimit > 0) badges.push(`⏱️ ${s.timeLimit}秒`);
-  if (s.allowedRows && s.allowedRows.length > 0) badges.push(`🎯 ${s.allowedRows.join('・')}`);
+  if (s.allowedRows && s.allowedRows.length > 0) badges.push(`🎯 ${s.allowedRows.map(esc).join('・')}`);
   if (s.noDakuten) badges.push('🚫 濁音・半濁音禁止');
-  badges.push(`❤️ ライフ${s.maxLives || 3}`);
-  $('gameRules').innerHTML = badges.map(b => `<span class="rule-badge">${b}</span>`).join('');
+  if (s.maxLives || s.maxLives === 0) badges.push(`❤️ ライフ${s.maxLives || 3}`);
+  return badges.map(b => `<span class="rule-badge">${b}</span>`).join('');
+}
+
+function renderRules() {
+  const s = currentSettings;
+  $('gameRules').innerHTML = buildRuleBadges(s);
   timerMax = s.timeLimit || 0;
 }
 

@@ -154,6 +154,8 @@ func (rm *RoomManager) ListRooms() []RoomInfo {
 			Status:      r.Status,
 			Genre:       r.Settings.Genre,
 			TimeLimit:   r.Settings.TimeLimit,
+			Owner:       r.Owner,
+			Settings:    r.Settings,
 		}
 		r.mu.Unlock()
 		list = append(list, info)
@@ -163,12 +165,14 @@ func (rm *RoomManager) ListRooms() []RoomInfo {
 
 // RoomInfo is a summary of a room for listing.
 type RoomInfo struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	PlayerCount int    `json:"playerCount"`
-	Status      string `json:"status"`
-	Genre       string `json:"genre"`
-	TimeLimit   int    `json:"timeLimit"`
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	PlayerCount int          `json:"playerCount"`
+	Status      string       `json:"status"`
+	Genre       string       `json:"genre"`
+	TimeLimit   int          `json:"timeLimit"`
+	Owner       string       `json:"owner"`
+	Settings    RoomSettings `json:"settings"`
 }
 
 // AddPlayer adds a player to the room.
