@@ -721,6 +721,13 @@ func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 		r.History = r.History[:len(r.History)-1]
 	}
 	delete(r.UsedWords, r.pendingVote.Hiragana)
+
+	// Revert the score that was awarded when the word was originally accepted
+	if p, ok := r.Players[r.pendingVote.Player]; ok {
+		if p.Score > 0 {
+			p.Score--
+		}
+	}
 	prevWord := ""
 	if len(r.History) > 0 {
 		prevWord = r.History[len(r.History)-1].Word
