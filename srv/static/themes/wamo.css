@@ -314,8 +314,9 @@
 
 [data-theme="wamo"] .form-group input:focus,
 [data-theme="wamo"] .form-group select:focus {
-  border-color: #1a1a2e;
+  border-color: rgba(26,26,46,.15);
   box-shadow: none;
+  outline: none;
 }
 
 [data-theme="wamo"] .form-group label {
@@ -340,8 +341,7 @@
 }
 
 [data-theme="wamo"] .answer-area input:focus {
-  border-color: #1a1a2e;
-  border-bottom-width: 2px;
+  border-color: inherit;
   box-shadow: none;
   outline: none;
 }
@@ -782,8 +782,7 @@
 
 [data-theme="wamo"] #lobby .player-name-section input:focus {
   border-style: solid;
-  border-color: #1a1a2e;
-  border-bottom-width: 2px;
+  border-color: inherit;
   outline: none;
   box-shadow: none;
 }
@@ -810,7 +809,8 @@
 }
 
 [data-theme="wamo"] .rebuttal-input:focus {
-  border-color: #1a1a2e;
+  border-color: inherit;
+  outline: none;
 }
 
 [data-theme="wamo"] .rebuttal-display {
