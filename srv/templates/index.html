@@ -1737,9 +1737,51 @@
         font-weight: 600;
         color: var(--primary);
       }
+      /* ========== TOAST ========== */
+      .toast-container {
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .toast {
+        background: #333;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        opacity: 0;
+        transform: translateY(-12px);
+        animation: toastIn 0.3s ease forwards;
+        pointer-events: auto;
+      }
+      .toast.toast-error {
+        background: #d32f2f;
+      }
+      .toast.toast-success {
+        background: #388e3c;
+      }
+      .toast.toast-out {
+        animation: toastOut 0.3s ease forwards;
+      }
+      @keyframes toastIn {
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes toastOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(-12px); }
+      }
     </style>
   </head>
   <body>
+    <div class="toast-container" id="toastContainer"></div>
     <div class="header">
       <h1><a href="/">しりとり</a></h1>
       <p>ことばを繋ぐ、みんなで遊ぶ</p>
@@ -3390,7 +3432,11 @@
         fetch(`/room/${encodeURIComponent(roomId)}`)
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => {
-            if (!data) return;
+            if (!data) {
+              clearInvite();
+              showToast("ルームが存在しません", "error");
+              return;
+            }
             if (showPreviewOnly) {
               renderInviteRoomInfo(data);
               return;
@@ -3398,7 +3444,10 @@
             prepareWaitingRoom(data);
             renderInviteRoomInfo(data);
           })
-          .catch(() => {});
+          .catch(() => {
+            clearInvite();
+            showToast("ルーム情報の取得に失敗しました", "error");
+          });
       }
 
       function showInviteRoomPreview(roomId) {
@@ -3410,6 +3459,18 @@
       }
 
       /* ========== MESSAGES ========== */
+      function showToast(message, type) {
+        const container = $("toastContainer");
+        const el = document.createElement("div");
+        el.className = "toast" + (type ? " toast-" + type : "");
+        el.textContent = message;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.classList.add("toast-out");
+          el.addEventListener("animationend", () => el.remove());
+        }, 3000);
+      }
+
       function addMessage(text, type) {
         const list = $("messageList");
         if (!list) return;
