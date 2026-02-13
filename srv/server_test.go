@@ -47,6 +47,9 @@ func TestGetLastChar(t *testing.T) {
 		{"きゃべつ", 'つ'},
 		{"ちゃ", 'や'},         // small ya -> ya
 		{"らーめん", 'ん'}, // should just be ん
+		{"るびー", 'び'},     // long vowel: use preceding char
+		{"こーひー", 'ひ'},   // long vowel: use preceding char
+		{"ぎたー", 'た'},     // long vowel: use preceding char
 	}
 	for _, tt := range tests {
 		result := getLastChar(tt.input)

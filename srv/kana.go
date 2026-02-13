@@ -120,14 +120,10 @@ func getLastChar(hiragana string) rune {
 	for i := len(runes) - 1; i >= 0; i-- {
 		r := runes[i]
 
-		// If long vowel mark, resolve it from the preceding character
+		// If long vowel mark, use the preceding character directly
 		if isLongVowelMark(r) {
 			if i > 0 {
-				prev := runes[i-1]
-				prev = normalizeSmallKana(prev)
-				if v, ok := vowelForHiragana[prev]; ok {
-					return v
-				}
+				return normalizeSmallKana(runes[i-1])
 			}
 			continue
 		}
