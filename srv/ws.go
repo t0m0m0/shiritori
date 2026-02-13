@@ -289,6 +289,7 @@ func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *R
 	roomID := generateRoomID()
 	room := s.Rooms.CreateRoom(roomID, *settings)
 	room.Owner = name
+	room.OnGameOver = s.makeGameOverCallback()
 
 	player := &Player{
 		Name: name,
@@ -508,14 +509,18 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 			if lastSurvivor != "" {
 				reason = fmt.Sprintf("%sさんの勝利！", lastSurvivor)
 			}
-			room.Broadcast(mustMarshal(map[string]any{
+			gameOverMsg := map[string]any{
 				"type":    "game_over",
 				"reason":  reason,
 				"winner":  lastSurvivor,
 				"scores":  scores,
 				"history": history,
 				"lives":   lives,
-			}))
+			}
+			if room.OnGameOver != nil {
+				gameOverMsg = room.OnGameOver(room, gameOverMsg)
+			}
+			room.Broadcast(mustMarshal(gameOverMsg))
 		}
 	}
 }
@@ -717,14 +722,18 @@ func (s *Server) broadcastVoteResult(room *Room, result VoteResolution) {
 		if lastSurvivor != "" {
 			reason = fmt.Sprintf("%sさんの勝利！", lastSurvivor)
 		}
-		room.Broadcast(mustMarshal(map[string]any{
+		gameOverMsg := map[string]any{
 			"type":    "game_over",
 			"reason":  reason,
 			"winner":  lastSurvivor,
 			"scores":  scores,
 			"history": history,
 			"lives":   lives,
-		}))
+		}
+		if room.OnGameOver != nil {
+			gameOverMsg = room.OnGameOver(room, gameOverMsg)
+		}
+		room.Broadcast(mustMarshal(gameOverMsg))
 	}
 }
 

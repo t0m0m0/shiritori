@@ -58,6 +58,9 @@ type Room struct {
 	timerCancel chan struct{}
 	timerLeft   int
 
+	// Callback for saving game result on game over (set by Server)
+	OnGameOver func(room *Room, result map[string]any) map[string]any
+
 	// Vote management
 	pendingVote *PendingVote
 }
@@ -376,14 +379,18 @@ func (r *Room) runTimer() {
 				if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {
 					loser = r.TurnOrder[r.TurnIndex]
 				}
-				msg := mustMarshal(map[string]any{
+				gameOverMsg := map[string]any{
 					"type":    "game_over",
 					"reason":  "タイムアップ",
 					"loser":   loser,
 					"scores":  r.getScoresLocked(),
 					"history": r.History,
-				})
-				r.broadcastLocked(msg)
+					"lives":   r.getLivesLocked(),
+				}
+				if r.OnGameOver != nil {
+					gameOverMsg = r.OnGameOver(r, gameOverMsg)
+				}
+				r.broadcastLocked(mustMarshal(gameOverMsg))
 				r.timerCancel = nil
 				r.mu.Unlock()
 				return

@@ -1532,14 +1532,20 @@ function onGameOver(msg) {
   const toggle = body.previousElementSibling;
   toggle.classList.remove('open');
 
-  // Save result to server for sharing
+  // Show share section using server-provided result ID
   lastShareURL = '';
   $('shareSection').style.display = 'none';
   const shareCopyBtn = $('shareCopyBtn');
   shareCopyBtn.classList.remove('copied');
   shareCopyBtn.innerHTML = '<span class="share-icon">\ud83d\udd17</span> \u30ea\u30f3\u30af\u30b3\u30d4\u30fc';
 
-  saveResultForSharing(msg);
+  if (msg.resultId) {
+    lastShareURL = location.origin + '/results/' + msg.resultId;
+    $('shareSection').style.display = '';
+  } else {
+    // Fallback: save via API (e.g. if server didn't include resultId)
+    saveResultForSharing(msg);
+  }
 }
 
 async function saveResultForSharing(msg) {

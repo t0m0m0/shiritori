@@ -31,6 +31,62 @@ func generateResultID() string {
 	return hex.EncodeToString(b)
 }
 
+// makeGameOverCallback returns a callback that saves the game result to DB
+// and adds the resultId to the game_over message.
+func (s *Server) makeGameOverCallback() func(room *Room, msg map[string]any) map[string]any {
+	return func(room *Room, msg map[string]any) map[string]any {
+		roomName := room.Settings.Name
+		genre := room.Settings.Genre
+		winner, _ := msg["winner"].(string)
+		reason, _ := msg["reason"].(string)
+
+		var scores map[string]int
+		if s, ok := msg["scores"].(map[string]int); ok {
+			scores = s
+		}
+		var history []WordEntry
+		if h, ok := msg["history"].([]WordEntry); ok {
+			history = h
+		}
+		var lives map[string]int
+		if l, ok := msg["lives"].(map[string]int); ok {
+			lives = l
+		}
+
+		id, err := s.saveGameResult(roomName, genre, winner, reason, scores, history, lives)
+		if err != nil {
+			slog.Error("save game result on game_over", "error", err)
+		} else {
+			msg["resultId"] = id
+		}
+		return msg
+	}
+}
+
+// saveGameResult saves a game result to the DB and returns the result ID.
+// Called server-side when a game ends, so only one save per game.
+func (s *Server) saveGameResult(roomName, genre, winner, reason string, scores map[string]int, history []WordEntry, lives map[string]int) (string, error) {
+	id := generateResultID()
+	scoresJSON, _ := json.Marshal(scores)
+	historyJSON, _ := json.Marshal(history)
+	livesJSON, _ := json.Marshal(lives)
+	playerCount := len(scores)
+	if playerCount == 0 {
+		playerCount = 1
+	}
+	_, err := s.DB.Exec(
+		`INSERT INTO game_results (id, room_name, genre, winner, reason, scores_json, history_json, lives_json, player_count, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, roomName, genre, winner, reason,
+		string(scoresJSON), string(historyJSON), string(livesJSON),
+		playerCount, time.Now().UTC(),
+	)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 // HandleSaveResult saves a game result and returns the ID.
 func (s *Server) HandleSaveResult(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
