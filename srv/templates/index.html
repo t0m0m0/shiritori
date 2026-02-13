@@ -1647,10 +1647,6 @@ document.addEventListener('keydown', e => {
 /* ========== INIT ========== */
 connect();
 handleInviteFromURL();
-const initialRoomId = new URLSearchParams(window.location.search).get('room');
-if (initialRoomId) {
-  loadInviteRoomInfo(initialRoomId);
-}
 window.addEventListener('popstate', handleInviteFromURL);
 // Refresh rooms periodically
 setInterval(() => {
