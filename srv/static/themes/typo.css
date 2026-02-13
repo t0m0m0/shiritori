@@ -254,9 +254,8 @@
 [data-theme="typo"] .form-group input:focus,
 [data-theme="typo"] .form-group select:focus {
   outline: none;
-  border-color: #111;
+  border-color: inherit;
   box-shadow: none;
-  border-bottom-width: 2px;
 }
 
 /* ==========================================================================
@@ -477,7 +476,7 @@
 }
 
 [data-theme="typo"] .answer-area input:focus {
-  border-color: #111;
+  border-color: inherit;
   outline: none;
   box-shadow: none;
 }
@@ -594,8 +593,9 @@
 
 [data-theme="typo"] #lobby .player-name-section input:focus {
   border-style: solid;
-  border-color: #111;
+  border-color: inherit;
   box-shadow: none;
+  outline: none;
 }
 
 [data-theme="typo"] #lobby .player-name-section input::placeholder {
