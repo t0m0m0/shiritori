@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>しりとり - マルチプレイヤー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Zen+Antique&family=Shippori+Mincho:wght@400;700&family=Zen+Maru+Gothic:wght@400;500;700&family=DotGothic16&family=RocknRoll+One&family=Kosugi+Maru&family=Shippori+Mincho+B1:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap" rel="stylesheet">
+<link id="themeCSS" rel="stylesheet" href="">
+<script>
+(function(){
+  var t=localStorage.getItem('shiritori-theme')||'default';
+  document.documentElement.setAttribute('data-theme',t);
+  if(t!=='default'){
+    document.getElementById('themeCSS').href='/static/themes/'+t+'.css';
+  }
+})();
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -588,6 +599,37 @@ input,select{font-family:inherit;font-size:1rem}
 .lobby-btn-wrap:not(:has(.btn:disabled)) .lobby-btn-tooltip {
   display: none !important;
 }
+
+/* ── Theme Switcher ── */
+.theme-switcher {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: .5rem;
+  position: relative;
+  z-index: 10;
+}
+.theme-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.1);
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all .2s;
+  padding: 0;
+  line-height: 1;
+}
+.theme-btn:hover {
+  border-color: rgba(255,255,255,.7);
+  transform: scale(1.15);
+}
+.theme-btn.active {
+  border-color: #fff;
+  background: rgba(255,255,255,.25);
+  box-shadow: 0 0 8px rgba(255,255,255,.3);
+}
 </style>
 </head>
 <body>
@@ -595,6 +637,12 @@ input,select{font-family:inherit;font-size:1rem}
 <div class="header">
   <h1><a href="/">🎌 しりとり</a></h1>
   <p>みんなで楽しくことばをつなごう！</p>
+  <div class="theme-switcher" id="themeSwitcher">
+    <button class="theme-btn" data-theme="default" title="デフォルト">🟣</button>
+    <button class="theme-btn" data-theme="wamo" title="和モダン">🖤</button>
+    <button class="theme-btn" data-theme="neon" title="ネオン">💜</button>
+    <button class="theme-btn" data-theme="typo" title="活版">⬛</button>
+  </div>
 </div>
 
 <!-- ═══ LOBBY ═══ -->
@@ -2023,6 +2071,33 @@ function updateLobbyButtons() {
 }
 $('playerName').addEventListener('input', updateLobbyButtons);
 updateLobbyButtons();
+
+// ── Theme Switcher ──
+(function initThemeSwitcher() {
+  var current = localStorage.getItem('shiritori-theme') || 'default';
+  var btns = document.querySelectorAll('.theme-btn');
+  var cssLink = document.getElementById('themeCSS');
+
+  function applyTheme(name) {
+    document.documentElement.setAttribute('data-theme', name);
+    localStorage.setItem('shiritori-theme', name);
+    if (name === 'default') {
+      cssLink.href = '';
+    } else {
+      cssLink.href = '/static/themes/' + name + '.css';
+    }
+    btns.forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-theme') === name);
+    });
+  }
+
+  btns.forEach(function(b) {
+    if (b.getAttribute('data-theme') === current) b.classList.add('active');
+    b.addEventListener('click', function() {
+      applyTheme(this.getAttribute('data-theme'));
+    });
+  });
+})();
 
 </script>
 </body>

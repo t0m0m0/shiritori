@@ -1,0 +1,1015 @@
+/* ==========================================================================
+   活版タイポグラフィ (Typo) — Editorial Minimal Theme
+   Typography IS the design.  Black, White, Red.
+   ========================================================================== */
+
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;700&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap');
+
+/* ==========================================================================
+   §1  CSS Custom Properties
+   ========================================================================== */
+[data-theme="typo"] {
+  --primary:       #111;
+  --primary-light:  #333;
+  --primary-dark:   #000;
+  --accent:        #e00;
+  --accent-light:  #e00;
+  --danger:        #e00;
+  --success:       #111;
+  --bg:            #fafafa;
+  --surface:       #fafafa;
+  --surface2:      #f0f0f0;
+  --text:          #111;
+  --text2:         #666;
+  --text3:         #999;
+  --radius:        0px;
+  --shadow:        none;
+}
+
+/* ==========================================================================
+   §2  Base Elements
+   ========================================================================== */
+[data-theme="typo"] body {
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  font-weight: 300;
+  background: #fafafa;
+  color: #111;
+  line-height: 1.8;
+}
+
+[data-theme="typo"] button {
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  border-radius: 0;
+}
+
+[data-theme="typo"] input,
+[data-theme="typo"] select {
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+}
+
+/* ==========================================================================
+   §3  Kill ALL Animations
+   Only allow subtle opacity fades.
+   ========================================================================== */
+[data-theme="typo"] .fade-in,
+[data-theme="typo"] .slide-up,
+[data-theme="typo"] .pop-in {
+  animation: none !important;
+  opacity: 1;
+}
+
+[data-theme="typo"] .current-word {
+  animation: none !important;
+}
+
+[data-theme="typo"] .header {
+  animation: none !important;
+  background-size: auto !important;
+}
+
+[data-theme="typo"] .turn-indicator {
+  animation: none !important;
+}
+
+[data-theme="typo"] .score-popup {
+  animation: typo-fade-up 0.8s ease both;
+}
+
+@keyframes typo-fade-up {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+/* ==========================================================================
+   §4  Header — Pure Typography, No Decoration
+   ========================================================================== */
+[data-theme="typo"] .header {
+  background: transparent;
+  color: #111;
+  padding: 3rem 1rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: visible;
+}
+
+[data-theme="typo"] .header::after {
+  display: none;
+}
+
+[data-theme="typo"] .header h1 {
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: clamp(3rem, 8vw, 5rem);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  color: #111;
+  text-shadow: none;
+  line-height: 1.2;
+}
+
+[data-theme="typo"] .header a {
+  color: #111;
+  text-decoration: none;
+}
+
+[data-theme="typo"] .header a:hover {
+  opacity: 0.6;
+}
+
+[data-theme="typo"] .header p {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  color: #666;
+  opacity: 1;
+  margin-top: 0.75rem;
+}
+
+/* ==========================================================================
+   §5  Cards — Border-Top Dividers, No Shadow
+   ========================================================================== */
+[data-theme="typo"] .card {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1.5rem 0;
+  margin-bottom: 0;
+  border-top: 2px solid #111;
+}
+
+[data-theme="typo"] .card h2 {
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #ddd;
+}
+
+[data-theme="typo"] .card h2::before {
+  display: none;
+}
+
+/* ==========================================================================
+   §6  Forms — Underline Inputs
+   ========================================================================== */
+[data-theme="typo"] .form-group label {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+[data-theme="typo"] .form-group input,
+[data-theme="typo"] .form-group select {
+  border: none;
+  border-bottom: 1px solid #111;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.6rem 0.2rem;
+  transition: border-color 0.3s;
+}
+
+[data-theme="typo"] .form-group input:focus,
+[data-theme="typo"] .form-group select:focus {
+  outline: none;
+  border-color: #111;
+  box-shadow: none;
+  border-bottom-width: 2px;
+}
+
+/* ==========================================================================
+   §7  Buttons — Sharp Black Rectangles
+   ========================================================================== */
+[data-theme="typo"] .btn {
+  border-radius: 0;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="typo"] .btn:active {
+  transform: none;
+}
+
+[data-theme="typo"] .btn-primary {
+  background: #111;
+  color: #fafafa;
+  border: 2px solid #111;
+}
+
+[data-theme="typo"] .btn-primary:hover {
+  background: #fafafa;
+  color: #111;
+  border: 2px solid #111;
+  transform: none;
+  box-shadow: none;
+}
+
+[data-theme="typo"] .btn-accent {
+  background: #111;
+  color: #fafafa;
+  border: 2px solid #111;
+}
+
+[data-theme="typo"] .btn-accent:hover {
+  background: #fafafa;
+  color: #111;
+  transform: none;
+}
+
+[data-theme="typo"] .btn-outline {
+  background: transparent;
+  color: #111;
+  border: 1px solid #111;
+}
+
+[data-theme="typo"] .btn-outline:hover {
+  background: #111;
+  color: #fafafa;
+}
+
+[data-theme="typo"] .btn-danger {
+  background: #e00;
+  color: #fff;
+  border: 2px solid #e00;
+}
+
+[data-theme="typo"] .btn-danger:hover {
+  background: #fff;
+  color: #e00;
+}
+
+[data-theme="typo"] .btn-accept {
+  background: #111;
+  color: #fafafa;
+  border: 2px solid #111;
+}
+
+[data-theme="typo"] .btn-accept:hover {
+  background: #fafafa;
+  color: #111;
+}
+
+[data-theme="typo"] .btn-reject {
+  background: #e00;
+  color: #fff;
+  border: 2px solid #e00;
+}
+
+[data-theme="typo"] .btn-reject:hover {
+  background: #fff;
+  color: #e00;
+}
+
+[data-theme="typo"] .btn-lg {
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   §8  Current Word — Typography Hero
+   ========================================================================== */
+[data-theme="typo"] .current-word-area {
+  background: transparent;
+  border-radius: 0;
+  padding: 3rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1.5rem;
+}
+
+[data-theme="typo"] .current-word-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: #999;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+[data-theme="typo"] .current-word {
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: clamp(3rem, 10vw, 6rem);
+  font-weight: 400;
+  color: #111;
+  letter-spacing: 0.15em;
+  line-height: 1.3;
+}
+
+/* ==========================================================================
+   §9  Turn Indicator — Clean Borders
+   ========================================================================== */
+[data-theme="typo"] .turn-indicator {
+  border-radius: 0;
+  font-family: 'Shippori Mincho B1', serif;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="typo"] .turn-indicator.my-turn {
+  background: #fafafa;
+  color: #111;
+  border: 2px solid #111;
+}
+
+[data-theme="typo"] .turn-indicator.other-turn {
+  background: #f0f0f0;
+  color: #666;
+  border: 1px solid #ccc;
+}
+
+[data-theme="typo"] .turn-order-item {
+  border-radius: 0;
+  background: #f0f0f0;
+  color: #111;
+}
+
+[data-theme="typo"] .turn-order-item.active {
+  background: #111;
+  color: #fafafa;
+}
+
+/* ==========================================================================
+   §10  Timer — Black Bar
+   ========================================================================== */
+[data-theme="typo"] .timer-bar {
+  border-radius: 0;
+  background: #eee;
+  height: 4px;
+}
+
+[data-theme="typo"] .timer-bar-inner {
+  border-radius: 0;
+  background: #111;
+  transition: width 0.3s linear;
+}
+
+[data-theme="typo"] .timer-bar-inner.warning {
+  background: #666;
+}
+
+[data-theme="typo"] .timer-bar-inner.danger {
+  background: #e00;
+  animation: none;
+}
+
+[data-theme="typo"] .timer-text {
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  color: #111;
+}
+
+[data-theme="typo"] .timer-text.warning {
+  color: #666;
+}
+
+[data-theme="typo"] .timer-text.danger {
+  color: #e00;
+}
+
+/* ==========================================================================
+   §11  Answer Input
+   ========================================================================== */
+[data-theme="typo"] .answer-area input {
+  border: none;
+  border-bottom: 2px solid #111;
+  border-radius: 0;
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: 1.3rem;
+  font-weight: 400;
+  background: transparent;
+  padding: 0.8rem 0.2rem;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="typo"] .answer-area input:focus {
+  border-color: #111;
+  outline: none;
+  box-shadow: none;
+}
+
+[data-theme="typo"] .answer-area .btn {
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   §12  Lobby — Player Name Input
+   ========================================================================== */
+[data-theme="typo"] #lobby .player-name-section input {
+  font-family: 'Shippori Mincho B1', serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-align: center;
+  border: none;
+  border-bottom: 2px solid #111;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.8rem 1rem;
+}
+
+[data-theme="typo"] #lobby .player-name-section input:focus {
+  border-style: solid;
+  border-color: #111;
+  box-shadow: none;
+}
+
+[data-theme="typo"] #lobby .player-name-section input::placeholder {
+  color: #bbb;
+  letter-spacing: 0.1em;
+}
+
+/* ==========================================================================
+   §13  Room List
+   ========================================================================== */
+[data-theme="typo"] .room-item {
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1px solid #ddd;
+  padding: 1rem 0;
+  margin-bottom: 0;
+  transition: opacity 0.3s;
+}
+
+[data-theme="typo"] .room-item:hover {
+  background: transparent;
+  transform: none;
+  opacity: 0.6;
+}
+
+[data-theme="typo"] .room-item:last-child {
+  border-bottom: none;
+}
+
+[data-theme="typo"] .room-name {
+  font-family: 'Shippori Mincho B1', serif;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: 0.03em;
+}
+
+[data-theme="typo"] .room-name:hover {
+  text-decoration: none;
+  opacity: 0.6;
+}
+
+[data-theme="typo"] .room-meta {
+  color: #999;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="typo"] .no-rooms {
+  color: #999;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+/* ==========================================================================
+   §14  Kana Row Chips — Sharp Squares
+   ========================================================================== */
+[data-theme="typo"] .kana-row-chip {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid #111;
+  color: #111;
+  font-weight: 400;
+  transition: background 0.2s, color 0.2s;
+}
+
+[data-theme="typo"] .kana-row-chip:hover {
+  background: #f0f0f0;
+}
+
+[data-theme="typo"] .kana-row-chip.selected {
+  background: #111;
+  color: #fafafa;
+  border-color: #111;
+}
+
+/* ==========================================================================
+   §15  Rule Badges
+   ========================================================================== */
+[data-theme="typo"] .rule-badge {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid #111;
+  color: #111;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+/* ==========================================================================
+   §16  History Items
+   ========================================================================== */
+[data-theme="typo"] .history-item {
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1px solid #eee;
+  padding: 0.5rem 0;
+  margin-bottom: 0;
+  animation: none !important;
+}
+
+[data-theme="typo"] .history-word {
+  font-family: 'Shippori Mincho B1', serif;
+  font-weight: 700;
+  color: #111;
+}
+
+[data-theme="typo"] .history-player {
+  color: #999;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="typo"] .history-connector {
+  color: #ccc;
+}
+
+[data-theme="typo"] .history-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   §17  Player List / Sidebar
+   ========================================================================== */
+[data-theme="typo"] .player-item {
+  border-radius: 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+[data-theme="typo"] .player-item.current-turn {
+  background: transparent;
+  border-left: 3px solid #111;
+  padding-left: 0.7rem;
+}
+
+[data-theme="typo"] .player-name-display {
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+[data-theme="typo"] .player-score {
+  font-weight: 500;
+  color: #111;
+  background: transparent;
+  border-radius: 0;
+  border: 1px solid #ddd;
+  padding: 0.1rem 0.5rem;
+}
+
+/* ==========================================================================
+   §18  Invite Card
+   ========================================================================== */
+[data-theme="typo"] .invite-card {
+  background: transparent;
+  border-top: 2px solid #111;
+}
+
+[data-theme="typo"] .invite-card .invite-info {
+  color: #111;
+}
+
+[data-theme="typo"] .invite-card .invite-id {
+  color: #666;
+}
+
+[data-theme="typo"] .invite-room-title {
+  font-family: 'Shippori Mincho B1', serif;
+  color: #111;
+}
+
+[data-theme="typo"] .invite-room-rules {
+  gap: 0.4rem;
+}
+
+/* ==========================================================================
+   §19  Waiting Players
+   ========================================================================== */
+[data-theme="typo"] .waiting-players h3 {
+  font-family: 'Shippori Mincho B1', serif;
+  color: #111;
+  font-weight: 400;
+}
+
+[data-theme="typo"] .waiting-player-list li {
+  background: #111;
+  color: #fafafa;
+  border-radius: 0;
+  padding: 0.3rem 0.8rem;
+  font-weight: 400;
+}
+
+[data-theme="typo"] .waiting-player-list li .owner-badge {
+  background: #e00;
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   §20  Start Area
+   ========================================================================== */
+[data-theme="typo"] .start-area {
+  padding: 2.5rem;
+}
+
+[data-theme="typo"] .waiting-text {
+  color: #666;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+/* ==========================================================================
+   §21  My Lives Display
+   ========================================================================== */
+[data-theme="typo"] .my-lives-display {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1rem;
+}
+
+[data-theme="typo"] .my-lives-label {
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: #666;
+}
+
+[data-theme="typo"] .my-lives-hearts .heart.breaking {
+  animation: none;
+  filter: grayscale(1);
+  opacity: 0.3;
+}
+
+/* ==========================================================================
+   §22  Messages
+   ========================================================================== */
+[data-theme="typo"] .msg-item {
+  color: #666;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+[data-theme="typo"] .msg-item.msg-success {
+  color: #111;
+}
+
+[data-theme="typo"] .msg-item.msg-error {
+  color: #e00;
+}
+
+[data-theme="typo"] .msg-item.msg-info {
+  color: #111;
+}
+
+/* ==========================================================================
+   §23  Game Over
+   ========================================================================== */
+[data-theme="typo"] .game-over-overlay {
+  background: rgba(250, 250, 250, 0.92);
+  backdrop-filter: blur(8px);
+  animation: none !important;
+}
+
+[data-theme="typo"] .game-over-card {
+  background: #fafafa;
+  border-radius: 0;
+  border: 2px solid #111;
+  box-shadow: none;
+  animation: none !important;
+  opacity: 1;
+  padding: 2.5rem;
+}
+
+[data-theme="typo"] .game-over-card h2 {
+  font-family: 'Shippori Mincho B1', serif;
+  font-weight: 700;
+  color: #111;
+  font-size: 1.8rem;
+  letter-spacing: 0.1em;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+[data-theme="typo"] .game-over-card h2::before {
+  display: none;
+}
+
+[data-theme="typo"] .game-over-reason {
+  color: #666;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+}
+
+[data-theme="typo"] .final-score-item {
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid #eee;
+}
+
+[data-theme="typo"] .final-score-item:first-child {
+  background: transparent;
+  border-bottom: 2px solid #111;
+  font-weight: 700;
+}
+
+[data-theme="typo"] .final-rank {
+  color: #111;
+}
+
+[data-theme="typo"] .final-pts {
+  color: #111;
+  font-weight: 700;
+}
+
+/* ── Game Over History ── */
+[data-theme="typo"] .game-over-history-toggle {
+  border-radius: 0;
+  border: 1px solid #ddd;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 400;
+}
+
+[data-theme="typo"] .game-over-history-toggle:hover {
+  background: #f0f0f0;
+}
+
+[data-theme="typo"] .game-over-history-list li {
+  border-bottom-color: #eee;
+}
+
+[data-theme="typo"] .game-over-history-word {
+  font-family: 'Shippori Mincho B1', serif;
+  color: #111;
+}
+
+[data-theme="typo"] .game-over-history-chain {
+  background: #f0f0f0;
+  border-radius: 0;
+  color: #666;
+}
+
+[data-theme="typo"] .game-over-history-body::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   §24  Share Buttons
+   ========================================================================== */
+[data-theme="typo"] .share-btn {
+  border-radius: 0;
+  transition: opacity 0.2s;
+}
+
+[data-theme="typo"] .share-btn:hover {
+  opacity: 0.7;
+  transform: none;
+}
+
+[data-theme="typo"] .share-btn:active {
+  transform: none;
+}
+
+[data-theme="typo"] .share-btn-x {
+  background: #111;
+}
+
+[data-theme="typo"] .share-btn-line {
+  background: #111;
+}
+
+[data-theme="typo"] .share-btn-copy {
+  background: #111;
+}
+
+[data-theme="typo"] .share-btn-copy.copied {
+  background: #111;
+}
+
+/* ==========================================================================
+   §25  Vote UI
+   ========================================================================== */
+[data-theme="typo"] .vote-overlay {
+  background: rgba(250, 250, 250, 0.92);
+  backdrop-filter: blur(8px);
+  animation: none !important;
+}
+
+[data-theme="typo"] .vote-card {
+  background: #fafafa;
+  border-radius: 0;
+  border: 2px solid #111;
+  box-shadow: none;
+  animation: none !important;
+  opacity: 1;
+}
+
+[data-theme="typo"] .vote-card h3 {
+  font-family: 'Shippori Mincho B1', serif;
+  color: #111;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="typo"] .vote-card h3::before {
+  display: none;
+}
+
+[data-theme="typo"] .vote-word {
+  font-family: 'Shippori Mincho B1', serif;
+  font-weight: 400;
+  color: #111;
+  letter-spacing: 0.1em;
+}
+
+[data-theme="typo"] .vote-progress-bar {
+  border-radius: 0;
+  background: #eee;
+}
+
+[data-theme="typo"] .vote-progress-bar-inner {
+  border-radius: 0;
+  background: #111;
+}
+
+/* ==========================================================================
+   §26  Score Popup
+   ========================================================================== */
+[data-theme="typo"] .score-popup {
+  color: #111;
+  font-family: 'Shippori Mincho B1', serif;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   §27  Rebuttal
+   ========================================================================== */
+[data-theme="typo"] .rebuttal-label {
+  font-family: 'Shippori Mincho B1', serif;
+  color: #111;
+  font-weight: 400;
+}
+
+[data-theme="typo"] .rebuttal-input {
+  border: none;
+  border-bottom: 1px solid #111;
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-theme="typo"] .rebuttal-input:focus {
+  border-color: #111;
+}
+
+[data-theme="typo"] .rebuttal-display {
+  border-left: 2px solid #111;
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-theme="typo"] .rebuttal-display .rebuttal-sender {
+  color: #111;
+}
+
+/* ==========================================================================
+   §28  Lobby Tooltip
+   ========================================================================== */
+[data-theme="typo"] .lobby-btn-tooltip {
+  border-radius: 0;
+  background: #111;
+  color: #fafafa;
+}
+
+[data-theme="typo"] .lobby-btn-tooltip::after {
+  border-top-color: #111;
+}
+
+/* ==========================================================================
+   §29  Kana Select-All Link
+   ========================================================================== */
+[data-theme="typo"] .kana-row-select-all {
+  color: #111;
+}
+
+/* ==========================================================================
+   §30  Game Header
+   ========================================================================== */
+[data-theme="typo"] .room-title {
+  font-family: 'Shippori Mincho B1', serif;
+  color: #111;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* ==========================================================================
+   §31  Global Border-Radius Override
+   Catch anything we might have missed.
+   ========================================================================== */
+[data-theme="typo"] .card,
+[data-theme="typo"] .btn,
+[data-theme="typo"] .btn-lg,
+[data-theme="typo"] .form-group input,
+[data-theme="typo"] .form-group select,
+[data-theme="typo"] .answer-area input,
+[data-theme="typo"] .room-item,
+[data-theme="typo"] .player-item,
+[data-theme="typo"] .history-item,
+[data-theme="typo"] .rule-badge,
+[data-theme="typo"] .kana-row-chip,
+[data-theme="typo"] .turn-indicator,
+[data-theme="typo"] .timer-bar,
+[data-theme="typo"] .timer-bar-inner,
+[data-theme="typo"] .my-lives-display,
+[data-theme="typo"] .waiting-player-list li,
+[data-theme="typo"] .waiting-player-list li .owner-badge,
+[data-theme="typo"] .final-score-item,
+[data-theme="typo"] .game-over-card,
+[data-theme="typo"] .vote-card,
+[data-theme="typo"] .share-btn,
+[data-theme="typo"] .game-over-history-toggle,
+[data-theme="typo"] .game-over-history-chain,
+[data-theme="typo"] .vote-progress-bar,
+[data-theme="typo"] .vote-progress-bar-inner,
+[data-theme="typo"] .player-score,
+[data-theme="typo"] .lobby-btn-tooltip,
+[data-theme="typo"] .rebuttal-input,
+[data-theme="typo"] .rebuttal-display,
+[data-theme="typo"] .current-word-area {
+  border-radius: 0 !important;
+}
+
+/* ==========================================================================
+   §32  Global Shadow Override
+   ========================================================================== */
+[data-theme="typo"] .card,
+[data-theme="typo"] .game-over-card,
+[data-theme="typo"] .vote-card,
+[data-theme="typo"] .my-lives-display,
+[data-theme="typo"] .room-item,
+[data-theme="typo"] .btn:hover,
+[data-theme="typo"] .btn-primary:hover {
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   §33  Scrollbar Styling
+   ========================================================================== */
+[data-theme="typo"] ::-webkit-scrollbar {
+  width: 4px;
+}
+
+[data-theme="typo"] ::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 0;
+}
+
+[data-theme="typo"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ==========================================================================
+   §34  Responsive
+   ========================================================================== */
+@media (max-width: 500px) {
+  [data-theme="typo"] .header h1 {
+    font-size: clamp(2.2rem, 8vw, 3.5rem);
+    letter-spacing: 0.2em;
+  }
+
+  [data-theme="typo"] .current-word {
+    font-size: clamp(2.2rem, 10vw, 4rem);
+  }
+
+  [data-theme="typo"] .card {
+    padding: 1rem 0;
+  }
+}
+
+/* ── Theme Switcher for Typo ── */
+[data-theme="typo"] .theme-switcher {
+  margin-top: 1rem;
+}
+[data-theme="typo"] .theme-btn {
+  border-color: rgba(0,0,0,.2);
+  background: rgba(0,0,0,.03);
+}
+[data-theme="typo"] .theme-btn:hover {
+  border-color: rgba(0,0,0,.5);
+}
+[data-theme="typo"] .theme-btn.active {
+  border-color: #111;
+  background: rgba(0,0,0,.08);
+  box-shadow: none;
+}
