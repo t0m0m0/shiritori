@@ -323,6 +323,23 @@ input,select{font-family:inherit;font-size:1rem}
   padding:.4rem .5rem;background:var(--surface2);border-radius:6px;
 }
 
+/* ── Share Buttons ── */
+.share-section{margin-bottom:1.2rem}
+.share-section p{font-size:.8rem;color:var(--text2);margin-bottom:.5rem}
+.share-buttons{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+.share-btn{
+  display:inline-flex;align-items:center;gap:.3rem;
+  padding:.45rem 1rem;border-radius:999px;font-size:.85rem;font-weight:600;
+  color:#fff;transition:opacity .2s,transform .1s;
+}
+.share-btn:hover{opacity:.85;transform:scale(1.03)}
+.share-btn:active{transform:scale(.97)}
+.share-btn-x{background:#000}
+.share-btn-line{background:#06c755}
+.share-btn-copy{background:var(--primary)}
+.share-btn-copy.copied{background:var(--success)}
+.share-btn .share-icon{font-size:1rem}
+
 /* ── My lives display ── */
 .my-lives-display {
   display: flex; align-items: center; justify-content: center;
@@ -804,6 +821,14 @@ input,select{font-family:inherit;font-size:1rem}
         <ul class="game-over-history-list" id="gameOverHistoryList"></ul>
       </div>
     </div>
+    <div class="share-section" id="shareSection" style="display:none">
+      <p>📢 結果をシェア</p>
+      <div class="share-buttons">
+        <button class="share-btn share-btn-x" onclick="shareToX()"><span class="share-icon">𝕏</span> ポスト</button>
+        <button class="share-btn share-btn-line" onclick="shareToLINE()"><span class="share-icon">💬</span> LINE</button>
+        <button class="share-btn share-btn-copy" id="shareCopyBtn" onclick="shareLink()"><span class="share-icon">🔗</span> リンクコピー</button>
+      </div>
+    </div>
     <button id="playAgainBtn" class="btn btn-primary btn-lg" onclick="playAgain()" style="margin-right:.5rem">🔄 もう一度</button>
     <button class="btn btn-outline btn-lg" onclick="backToLobby()">🏠 ロビーへ</button>
     <p id="playAgainWait" class="game-over-reason hidden">ホストの開始を待っています…</p>
@@ -830,6 +855,7 @@ let kanaRowNames = [];
 let currentLives = {};
 let maxLives = 3;
 let inviteRoomId = '';
+let lastShareURL = '';
 
 const $ = id => document.getElementById(id);
 
@@ -1509,6 +1535,111 @@ function onGameOver(msg) {
   body.classList.remove('open');
   const toggle = body.previousElementSibling;
   toggle.classList.remove('open');
+
+  // Save result to server for sharing
+  lastShareURL = '';
+  $('shareSection').style.display = 'none';
+  const shareCopyBtn = $('shareCopyBtn');
+  shareCopyBtn.classList.remove('copied');
+  shareCopyBtn.innerHTML = '<span class="share-icon">\ud83d\udd17</span> \u30ea\u30f3\u30af\u30b3\u30d4\u30fc';
+
+  saveResultForSharing(msg);
+}
+
+async function saveResultForSharing(msg) {
+  try {
+    const payload = {
+      roomName: currentSettings.name || '\u3057\u308a\u3068\u308a',
+      genre: currentSettings.genre || '',
+      winner: msg.winner || '',
+      reason: msg.reason || '',
+      scores: msg.scores || {},
+      history: msg.history || [],
+      lives: msg.lives || {},
+    };
+    const resp = await fetch('/api/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) throw new Error('save failed');
+    const data = await resp.json();
+    lastShareURL = location.origin + '/results/' + data.id;
+    $('shareSection').style.display = '';
+  } catch (e) {
+    console.error('Failed to save result:', e);
+  }
+}
+
+function buildShareText(msg) {
+  const history = msg || [];
+  const words = (typeof history[0] === 'object') ? history.map(h => h.word) : [];
+  // Use the stored game-over history from the DOM
+  const hList = $('gameOverHistoryList');
+  const wordEls = hList.querySelectorAll('.game-over-history-word');
+  const ws = Array.from(wordEls).map(el => el.textContent);
+  const count = ws.length;
+
+  let text = `\u3057\u308a\u3068\u308a\u3067${count}\u8a9e\u3064\u306a\u304e\u307e\u3057\u305f\uff01\n`;
+  // Show chain (truncate for tweet)
+  const chain = ws.join(' \u2192 ');
+  const maxLen = 200;
+  if (chain.length > maxLen) {
+    text += chain.substring(0, maxLen) + '\u2026\n';
+  } else {
+    text += chain + '\n';
+  }
+  return text;
+}
+
+function shareToX() {
+  if (!lastShareURL) return;
+  const hList = $('gameOverHistoryList');
+  const ws = Array.from(hList.querySelectorAll('.game-over-history-word')).map(el => el.textContent);
+  const count = ws.length;
+  const chain = ws.join(' \u2192 ');
+  let text = `\u3057\u308a\u3068\u308a\u3067${count}\u8a9e\u3064\u306a\u304e\u307e\u3057\u305f\uff01\n`;
+  // Truncate chain to fit in tweet (280 - url - prefix ~ 200 chars for chain)
+  if ([...chain].length > 140) {
+    text += [...chain].slice(0, 137).join('') + '\u2026\n';
+  } else {
+    text += chain + '\n';
+  }
+  const url = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(lastShareURL)}`;
+  window.open(url, '_blank', 'width=550,height=420');
+}
+
+function shareToLINE() {
+  if (!lastShareURL) return;
+  const hList = $('gameOverHistoryList');
+  const ws = Array.from(hList.querySelectorAll('.game-over-history-word')).map(el => el.textContent);
+  const count = ws.length;
+  const chain = ws.join(' \u2192 ');
+  let text = `\u3057\u308a\u3068\u308a\u3067${count}\u8a9e\u3064\u306a\u304e\u307e\u3057\u305f\uff01\n`;
+  if ([...chain].length > 200) {
+    text += [...chain].slice(0, 197).join('') + '\u2026\n';
+  } else {
+    text += chain + '\n';
+  }
+  text += lastShareURL;
+  const url = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(lastShareURL)}&text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank', 'width=550,height=420');
+}
+
+async function shareLink() {
+  if (!lastShareURL) return;
+  try {
+    await navigator.clipboard.writeText(lastShareURL);
+    const btn = $('shareCopyBtn');
+    btn.classList.add('copied');
+    btn.innerHTML = '<span class="share-icon">\u2714</span> \u30b3\u30d4\u30fc\u3057\u307e\u3057\u305f';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<span class="share-icon">\ud83d\udd17</span> \u30ea\u30f3\u30af\u30b3\u30d4\u30fc';
+    }, 2000);
+  } catch {
+    prompt('\u30ea\u30f3\u30af\u3092\u30b3\u30d4\u30fc:', lastShareURL);
+  }
 }
 
 function toggleGameOverHistory(btn) {
