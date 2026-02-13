@@ -222,6 +222,17 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 				sendErr("ゲームを開始できるのはルーム作成者のみです")
 				continue
 			}
+			if msg.Settings != nil {
+				if err := currentRoom.UpdateSettings(*msg.Settings); err != nil {
+					sendErr(err.Error())
+					continue
+				}
+				// Broadcast updated settings to all players
+				currentRoom.Broadcast(mustMarshal(map[string]any{
+					"type":     "settings_updated",
+					"settings": currentRoom.Settings,
+				}))
+			}
 			s.handleStartGame(currentRoom)
 
 		case "answer":

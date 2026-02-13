@@ -1089,6 +1089,87 @@
         border: 1px solid var(--border);
       }
 
+      /* ── Game Over Settings Panel ── */
+      .game-over-settings {
+        text-align: left;
+        margin-bottom: 1.5rem;
+      }
+      .game-over-settings-toggle {
+        background: none;
+        border: 1px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+        font-size: 0.88rem;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: background 0.2s;
+      }
+      .game-over-settings-toggle:hover {
+        background: rgba(61, 107, 94, 0.06);
+      }
+      .game-over-settings-toggle .toggle-arrow {
+        transition: transform 0.3s;
+      }
+      .game-over-settings-toggle.open .toggle-arrow {
+        transform: rotate(180deg);
+      }
+      .game-over-settings-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+      }
+      .game-over-settings-body.open {
+        max-height: 600px;
+        overflow-y: auto;
+      }
+      .game-over-settings-body .form-group {
+        margin-top: 0.75rem;
+      }
+      .game-over-settings-body .form-row {
+        display: flex;
+        gap: 0.75rem;
+      }
+      .game-over-settings-body .form-row .form-group {
+        flex: 1;
+      }
+      .game-over-settings-body label {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--text2);
+        margin-bottom: 0.2rem;
+      }
+      .game-over-settings-body input,
+      .game-over-settings-body select {
+        width: 100%;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 0.88rem;
+        background: var(--surface);
+      }
+      .game-over-settings-body .kana-row-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-top: 0.3rem;
+      }
+      .game-over-settings-changed {
+        display: inline-block;
+        font-size: 0.72rem;
+        color: var(--accent);
+        margin-left: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .game-over-settings-changed.visible {
+        opacity: 1;
+      }
+
       /* ── Share Buttons ── */
       .share-section {
         margin-bottom: 1.2rem;
@@ -2103,6 +2184,63 @@
             </button>
           </div>
         </div>
+        <div class="game-over-settings" id="gameOverSettings" style="display:none">
+          <button class="game-over-settings-toggle" onclick="toggleGameOverSettings(this)">
+            <span>⚙️ ルール変更 <span class="game-over-settings-changed" id="settingsChangedBadge">✏️ 変更あり</span></span>
+            <span class="toggle-arrow">▼</span>
+          </button>
+          <div class="game-over-settings-body" id="gameOverSettingsBody">
+            <div class="form-row">
+              <div class="form-group">
+                <label>最少文字数</label>
+                <input type="number" id="goMinLen" min="1" max="20" />
+              </div>
+              <div class="form-group">
+                <label>最大文字数（0＝制限なし）</label>
+                <input type="number" id="goMaxLen" min="0" max="99" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>ジャンル（自由入力）</label>
+                <input type="text" id="goGenre" placeholder="例: 食べ物、動物…" maxlength="20" />
+              </div>
+              <div class="form-group">
+                <label>制限時間</label>
+                <select id="goTimeLimit">
+                  <option value="0">なし</option>
+                  <option value="10">10秒</option>
+                  <option value="20">20秒</option>
+                  <option value="30">30秒</option>
+                  <option value="60">60秒</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>ライフ数</label>
+                <select id="goMaxLives">
+                  <option value="1">❤️</option>
+                  <option value="2">❤️❤️</option>
+                  <option value="3">❤️❤️❤️</option>
+                  <option value="5">❤️❤️❤️❤️❤️</option>
+                  <option value="10">❤️×10</option>
+                </select>
+              </div>
+              <div class="form-group"></div>
+            </div>
+            <div class="form-group">
+              <label>使用可能な行（未選択＝すべて）</label>
+              <div id="goKanaRowCheckboxes" class="kana-row-grid"></div>
+            </div>
+            <div class="form-group">
+              <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
+                <input type="checkbox" id="goNoDakuten" style="display:inline;width:auto;margin-right:0.3rem" />
+                濁音・半濁音禁止
+              </label>
+            </div>
+          </div>
+        </div>
         <button
           id="playAgainBtn"
           class="btn btn-primary btn-lg"
@@ -2315,6 +2453,9 @@
             break;
           case "room_state":
             onJoined(msg);
+            break;
+          case "settings_updated":
+            onSettingsUpdated(msg);
             break;
           case "error":
             addMessage(msg.message, "error");
@@ -2622,6 +2763,12 @@
         const s = currentSettings;
         $("gameRules").innerHTML = buildRuleBadges(s);
         timerMax = s.timeLimit || 0;
+      }
+
+      function onSettingsUpdated(msg) {
+        currentSettings = msg.settings || currentSettings;
+        renderRules();
+        addMessage("⚙️ ルールが変更されました", "info");
       }
 
       function showActiveGame(active) {
@@ -2984,6 +3131,9 @@
           // Fallback: save via API (e.g. if server didn't include resultId)
           saveResultForSharing(msg);
         }
+
+        // Populate settings panel for game-over screen
+        populateGameOverSettings();
       }
 
       async function saveResultForSharing(msg) {
@@ -3094,6 +3244,93 @@
         $("gameOverHistoryBody").classList.toggle("open");
       }
 
+      function toggleGameOverSettings(btn) {
+        btn.classList.toggle("open");
+        $("gameOverSettingsBody").classList.toggle("open");
+      }
+
+      function populateGameOverSettings() {
+        const s = currentSettings;
+        $("goMinLen").value = s.minLen || 1;
+        $("goMaxLen").value = s.maxLen || 0;
+        $("goGenre").value = s.genre || "";
+        // Set select values
+        $("goTimeLimit").value = String(s.timeLimit || 0);
+        $("goMaxLives").value = String(s.maxLives || 3);
+        $("goNoDakuten").checked = !!s.noDakuten;
+
+        // Render kana row checkboxes for game-over settings
+        const container = $("goKanaRowCheckboxes");
+        if (container && kanaRowNames.length) {
+          container.innerHTML = "";
+          const allowed = s.allowedRows || [];
+          kanaRowNames.forEach((name) => {
+            const label = document.createElement("label");
+            label.className = "kana-row-chip";
+            const checked = allowed.includes(name);
+            label.innerHTML = `<input type="checkbox" value="${esc(name)}"${checked ? " checked" : ""}> ${esc(name)}`;
+            if (checked) label.classList.add("selected");
+            label.addEventListener("click", () => {
+              setTimeout(() => {
+                const cb = label.querySelector("input");
+                label.classList.toggle("selected", cb.checked);
+                checkSettingsChanged();
+              }, 0);
+            });
+            container.appendChild(label);
+          });
+        }
+
+        // Listen for changes to show badge
+        ["goMinLen", "goMaxLen", "goGenre", "goTimeLimit", "goMaxLives", "goNoDakuten"].forEach((id) => {
+          const el = $(id);
+          if (el) el.addEventListener("input", checkSettingsChanged);
+          if (el) el.addEventListener("change", checkSettingsChanged);
+        });
+
+        // Show/hide settings panel (only for owner)
+        $("gameOverSettings").style.display = (myName === roomOwner) ? "" : "none";
+        // Reset changed badge
+        $("settingsChangedBadge").classList.remove("visible");
+        // Collapse panel
+        $("gameOverSettingsBody").classList.remove("open");
+        const toggle = $("gameOverSettingsBody").previousElementSibling;
+        toggle.classList.remove("open");
+      }
+
+      function getGameOverSettings() {
+        const goRows = Array.from(
+          document.querySelectorAll("#goKanaRowCheckboxes input[type=checkbox]:checked")
+        ).map((cb) => cb.value);
+        return {
+          name: currentSettings.name || "しりとりルーム",
+          minLen: parseInt($("goMinLen").value) || 1,
+          maxLen: parseInt($("goMaxLen").value) || 0,
+          genre: $("goGenre").value,
+          timeLimit: parseInt($("goTimeLimit").value) || 0,
+          maxLives: parseInt($("goMaxLives").value) || 3,
+          allowedRows: goRows.length > 0 ? goRows : undefined,
+          noDakuten: $("goNoDakuten").checked || undefined,
+          private: currentSettings.private || undefined,
+        };
+      }
+
+      function checkSettingsChanged() {
+        const newS = getGameOverSettings();
+        const s = currentSettings;
+        const changed =
+          newS.minLen !== (s.minLen || 1) ||
+          newS.maxLen !== (s.maxLen || 0) ||
+          newS.genre !== (s.genre || "") ||
+          newS.timeLimit !== (s.timeLimit || 0) ||
+          newS.maxLives !== (s.maxLives || 3) ||
+          !!newS.noDakuten !== !!s.noDakuten ||
+          JSON.stringify(newS.allowedRows || []) !== JSON.stringify(s.allowedRows || []);
+        $("settingsChangedBadge").classList.toggle("visible", changed);
+        // Update button text
+        $("playAgainBtn").textContent = changed ? "🔄 ルール変更して開始" : "🔄 もう一度";
+      }
+
       function playAgain() {
         if (myName !== roomOwner) {
           $("playAgainBtn")?.classList.add("hidden");
@@ -3101,7 +3338,22 @@
           addMessage("ホストの開始を待っています…", "info");
           return;
         }
-        startGame();
+        // Check if settings were changed
+        const newS = getGameOverSettings();
+        const s = currentSettings;
+        const changed =
+          newS.minLen !== (s.minLen || 1) ||
+          newS.maxLen !== (s.maxLen || 0) ||
+          newS.genre !== (s.genre || "") ||
+          newS.timeLimit !== (s.timeLimit || 0) ||
+          newS.maxLives !== (s.maxLives || 3) ||
+          !!newS.noDakuten !== !!s.noDakuten ||
+          JSON.stringify(newS.allowedRows || []) !== JSON.stringify(s.allowedRows || []);
+        if (changed) {
+          send({ type: "start_game", settings: newS });
+        } else {
+          send({ type: "start_game" });
+        }
       }
 
       function backToLobby() {

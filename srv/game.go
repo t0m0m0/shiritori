@@ -356,6 +356,21 @@ func (r *Room) StartGame() error {
 	return nil
 }
 
+// UpdateSettings updates the room settings. Only allowed when game is not playing.
+func (r *Room) UpdateSettings(s RoomSettings) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Status == "playing" {
+		return fmt.Errorf("ゲーム中は設定を変更できません")
+	}
+	// Preserve room name and private flag from original settings if not provided
+	if s.Name == "" {
+		s.Name = r.Settings.Name
+	}
+	r.Settings = s
+	return nil
+}
+
 // runTimer runs the countdown timer in a goroutine.
 func (r *Room) runTimer() {
 	ticker := time.NewTicker(1 * time.Second)
