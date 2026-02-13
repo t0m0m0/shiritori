@@ -51,6 +51,19 @@ type Room struct {
 
 	timerCancel chan struct{}
 	timerLeft   int
+
+	// Vote management
+	pendingVote *PendingVote
+}
+
+// PendingVote holds state for an in-progress genre vote.
+type PendingVote struct {
+	Word       string
+	Hiragana   string
+	Player     string
+	Votes      map[string]bool // player name -> accept (true) / reject (false)
+	Timer      *time.Timer
+	Resolved   bool
 }
 
 // RoomManager manages all active rooms.
@@ -312,24 +325,38 @@ func (r *Room) resetTimer() {
 	}
 }
 
+// ValidateResult represents the outcome of word validation.
+type ValidateResult int
+
+const (
+	ValidateOK       ValidateResult = iota // Word accepted
+	ValidateRejected                        // Word rejected (hard fail)
+	ValidateVote                            // Need genre vote
+)
+
 // ValidateAndSubmitWord checks a word and applies it if valid.
-// Returns (success, message).
-func (r *Room) ValidateAndSubmitWord(word, playerName string) (bool, string) {
+// Returns (result, message). If result is ValidateVote, a vote has been started.
+func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if r.Status != "playing" {
-		return false, "ゲームが開始されていません"
+		return ValidateRejected, "ゲームが開始されていません"
+	}
+
+	// Reject if a vote is in progress
+	if r.pendingVote != nil && !r.pendingVote.Resolved {
+		return ValidateRejected, "投票中です。投票が終わるまでお待ちください"
 	}
 
 	// Check it's this player's turn
 	if len(r.TurnOrder) > 0 && r.TurnOrder[r.TurnIndex] != playerName {
-		return false, fmt.Sprintf("%sさんの番です", r.TurnOrder[r.TurnIndex])
+		return ValidateRejected, fmt.Sprintf("%sさんの番です", r.TurnOrder[r.TurnIndex])
 	}
 
 	// Check that word is valid Japanese kana
 	if !isJapanese(word) {
-		return false, "ひらがな・カタカナで入力してください"
+		return ValidateRejected, "ひらがな・カタカナで入力してください"
 	}
 
 	hiragana := toHiragana(word)
@@ -337,16 +364,16 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (bool, string) {
 	// Check length
 	wlen := charCount(hiragana)
 	if r.Settings.MinLen > 0 && wlen < r.Settings.MinLen {
-		return false, fmt.Sprintf("%d文字以上で入力してください", r.Settings.MinLen)
+		return ValidateRejected, fmt.Sprintf("%d文字以上で入力してください", r.Settings.MinLen)
 	}
 	if r.Settings.MaxLen > 0 && wlen > r.Settings.MaxLen {
-		return false, fmt.Sprintf("%d文字以下で入力してください", r.Settings.MaxLen)
+		return ValidateRejected, fmt.Sprintf("%d文字以下で入力してください", r.Settings.MaxLen)
 	}
 
 	// Check ends with ん
 	runes := []rune(hiragana)
 	if runes[len(runes)-1] == 'ん' {
-		return false, "「ん」で終わる言葉は使えません"
+		return ValidateRejected, "「ん」で終わる言葉は使えません"
 	}
 
 	// Check first char matches last char of current word
@@ -355,20 +382,39 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (bool, string) {
 	firstChar := getFirstChar(hiragana)
 
 	if lastChar != firstChar {
-		return false, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
+		return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
 	}
 
 	// Check not already used
 	if r.UsedWords[hiragana] {
-		return false, "この言葉はすでに使われています"
+		return ValidateRejected, "この言葉はすでに使われています"
 	}
 
-	// Genre check
+	// Genre check — if fails, start a vote (only in multiplayer)
 	if !isWordInGenre(hiragana, r.Settings.Genre) {
-		return false, fmt.Sprintf("ジャンル「%s」の言葉を入力してください", r.Settings.Genre)
+		// Solo play: no vote possible, just reject
+		if len(r.Players) <= 1 {
+			return ValidateRejected, fmt.Sprintf("ジャンル「%s」の言葉を入力してください", r.Settings.Genre)
+		}
+		// Start a vote
+		r.pendingVote = &PendingVote{
+			Word:     word,
+			Hiragana: hiragana,
+			Player:   playerName,
+			Votes:    make(map[string]bool),
+		}
+		// Submitter's vote automatically counts as accept
+		r.pendingVote.Votes[playerName] = true
+		return ValidateVote, fmt.Sprintf("「%s」はジャンル「%s」のリストにありません。投票で判定します", word, r.Settings.Genre)
 	}
 
 	// All good — apply the word
+	r.applyWordLocked(word, hiragana, playerName)
+	return ValidateOK, ""
+}
+
+// applyWordLocked applies an accepted word. Caller must hold r.mu.
+func (r *Room) applyWordLocked(word, hiragana, playerName string) {
 	r.UsedWords[hiragana] = true
 	r.CurrentWord = word
 	r.History = append(r.History, WordEntry{
@@ -390,7 +436,85 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (bool, string) {
 	// Reset timer
 	r.resetTimer()
 
-	return true, ""
+	// Clear any resolved vote
+	r.pendingVote = nil
+}
+
+// CastVote records a player's vote and returns (allVoted, accepted).
+// accepted is only meaningful when allVoted is true.
+func (r *Room) CastVote(playerName string, accept bool) (allVoted bool, accepted bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.pendingVote == nil || r.pendingVote.Resolved {
+		return false, false
+	}
+
+	// Only players in the room can vote
+	if _, ok := r.Players[playerName]; !ok {
+		return false, false
+	}
+
+	r.pendingVote.Votes[playerName] = accept
+
+	// Check if all players have voted
+	if len(r.pendingVote.Votes) < len(r.Players) {
+		return false, false
+	}
+
+	// All voted — tally
+	r.pendingVote.Resolved = true
+	acceptCount := 0
+	rejectCount := 0
+	for _, v := range r.pendingVote.Votes {
+		if v {
+			acceptCount++
+		} else {
+			rejectCount++
+		}
+	}
+
+	accepted = acceptCount > rejectCount
+	if accepted {
+		r.applyWordLocked(r.pendingVote.Word, r.pendingVote.Hiragana, r.pendingVote.Player)
+	} else {
+		// Vote rejected — clear pending vote, player keeps their turn
+		r.pendingVote = nil
+	}
+
+	return true, accepted
+}
+
+// ForceResolveVote resolves the vote by timeout (majority wins, tie = reject).
+func (r *Room) ForceResolveVote() (resolved bool, accepted bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.pendingVote == nil || r.pendingVote.Resolved {
+		return false, false
+	}
+
+	r.pendingVote.Resolved = true
+	acceptCount := 0
+	rejectCount := 0
+	for _, v := range r.pendingVote.Votes {
+		if v {
+			acceptCount++
+		} else {
+			rejectCount++
+		}
+	}
+	// Non-voters count as reject
+	rejectCount += len(r.Players) - len(r.pendingVote.Votes)
+
+	accepted = acceptCount > rejectCount
+	if accepted {
+		r.applyWordLocked(r.pendingVote.Word, r.pendingVote.Hiragana, r.pendingVote.Player)
+	} else {
+		r.pendingVote = nil
+	}
+
+	return true, accepted
 }
 
 // getScoresLocked returns a map of player scores. Caller must hold r.mu.

@@ -104,30 +104,30 @@ func TestWordValidation(t *testing.T) {
 	}
 
 	// Valid word starting with り
-	ok, _ := room.ValidateAndSubmitWord("りんご", "test")
-	if !ok {
+	result, _ := room.ValidateAndSubmitWord("りんご", "test")
+	if result != ValidateOK {
 		t.Error("expected りんご to be valid")
 	}
 
 	// Word ending in ん
 	room.CurrentWord = "りんご"
-	ok, msg := room.ValidateAndSubmitWord("ごはん", "test")
-	if ok {
+	result, msg := room.ValidateAndSubmitWord("ごはん", "test")
+	if result == ValidateOK {
 		t.Error("expected ごはん to be rejected (ends in ん)")
 	}
 	_ = msg
 
 	// Wrong starting character
-	ok, _ = room.ValidateAndSubmitWord("さくら", "test")
-	if ok {
+	result, _ = room.ValidateAndSubmitWord("さくら", "test")
+	if result == ValidateOK {
 		t.Error("expected さくら to be rejected (doesn't start with ご)")
 	}
 
 	// Already used
 	room.CurrentWord = "りんご" // last char is ご
 	room.UsedWords["ごま"] = true
-	ok, _ = room.ValidateAndSubmitWord("ごま", "test")
-	if ok {
+	result, _ = room.ValidateAndSubmitWord("ごま", "test")
+	if result == ValidateOK {
 		t.Error("expected ごま to be rejected (already used)")
 	}
 }

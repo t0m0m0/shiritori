@@ -323,6 +323,50 @@ input,select{font-family:inherit;font-size:1rem}
   opacity: .5;
   pointer-events: none;
 }
+
+/* ── Vote UI ── */
+.vote-overlay {
+  position: fixed; inset: 0;
+  background: rgba(30,27,75,.6); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 90; animation: fadeIn .3s ease;
+}
+.vote-card {
+  background: var(--surface); border-radius: var(--radius); padding: 2rem;
+  text-align: center; max-width: 400px; width: 90%;
+  animation: popIn .4s ease both;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.vote-card h3 { font-size: 1.2rem; color: var(--primary); margin-bottom: .5rem; }
+.vote-card h3::before { display: none; }
+.vote-word {
+  font-size: 2rem; font-weight: 900; color: var(--text);
+  margin: .75rem 0; letter-spacing: .05em;
+}
+.vote-question { color: var(--text2); font-size: .9rem; margin-bottom: 1rem; }
+.vote-buttons { display: flex; gap: .75rem; justify-content: center; margin-bottom: 1rem; }
+.vote-buttons .btn { min-width: 120px; font-size: 1.05rem; padding: .75rem 1.5rem; }
+.btn-accept { background: var(--success); color: #fff; }
+.btn-accept:hover { background: #16a34a; }
+.btn-reject { background: var(--danger); color: #fff; }
+.btn-reject:hover { background: #dc2626; }
+.vote-progress {
+  font-size: .85rem; color: var(--text2);
+}
+.vote-progress-bar {
+  height: 6px; background: var(--surface2); border-radius: 3px;
+  margin-top: .5rem; overflow: hidden;
+}
+.vote-progress-bar-inner {
+  height: 100%; background: var(--primary); border-radius: 3px;
+  transition: width .3s;
+}
+.vote-timer {
+  font-size: .8rem; color: var(--text2); margin-top: .5rem;
+}
+.vote-waiting {
+  color: var(--text2); font-size: .95rem; padding: .5rem 0;
+}
 </style>
 </head>
 <body>
@@ -359,12 +403,8 @@ input,select{font-family:inherit;font-size:1rem}
         <label>ジャンル</label>
         <select id="genre">
           <option value="">なし</option>
-          <option value="食べ物">食べ物</option>
-          <option value="動物">動物</option>
-          <option value="国名">国名</option>
-          <option value="都道府県">都道府県</option>
-          <option value="スポーツ">スポーツ</option>
-          <option value="植物">植物</option>
+          <option value="食べ物">🍔 食べ物</option>
+          <option value="動物">🐾 動物</option>
         </select>
       </div>
       <div class="form-group">
@@ -450,6 +490,26 @@ input,select{font-family:inherit;font-size:1rem}
   </div>
 </div>
 
+<!-- ═══ VOTE OVERLAY ═══ -->
+<div id="voteOverlay" class="vote-overlay hidden">
+  <div class="vote-card">
+    <h3>🗳️ ジャンル投票</h3>
+    <p class="vote-question" id="voteQuestion"></p>
+    <div class="vote-word" id="voteWord"></div>
+    <p class="vote-question" id="voteGenreHint"></p>
+    <div id="voteButtonArea" class="vote-buttons">
+      <button class="btn btn-accept" onclick="castVote(true)">✅ 認める</button>
+      <button class="btn btn-reject" onclick="castVote(false)">❌ 却下</button>
+    </div>
+    <div id="voteWaiting" class="vote-waiting hidden">投票済み。他のプレイヤーの投票を待っています…</div>
+    <div class="vote-progress">
+      <span id="voteProgressText">0 / 0 投票済み</span>
+      <div class="vote-progress-bar"><div class="vote-progress-bar-inner" id="voteProgressBar" style="width:0%"></div></div>
+    </div>
+    <div class="vote-timer" id="voteTimer">15秒で自動判定</div>
+  </div>
+</div>
+
 <!-- ═══ GAME OVER OVERLAY ═══ -->
 <div id="gameOver" class="game-over-overlay hidden">
   <div class="game-over-card">
@@ -473,6 +533,8 @@ let currentTurn = '';
 let turnOrder = [];
 let roomOwner = '';
 let waitingPlayers = [];
+let voteTimerInterval = null;
+let hasVoted = false;
 
 const $ = id => document.getElementById(id);
 
@@ -503,6 +565,9 @@ function handleMessage(msg) {
     case 'answer_rejected': onInvalid(msg.message); break;
     case 'timer': onTimer(msg.timeLeft); break;
     case 'game_over': onGameOver(msg); break;
+    case 'vote_request': onVoteRequest(msg); break;
+    case 'vote_update': onVoteUpdate(msg); break;
+    case 'vote_result': onVoteResult(msg); break;
     case 'room_state': onJoined(msg); break;
     case 'error': addMessage(msg.message, 'error'); break;
     default: console.log('Unknown message', msg);
@@ -861,6 +926,66 @@ function showScorePopup(player) {
   el.style.top = '40%';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1000);
+}
+
+/* ========== VOTE ========== */
+function onVoteRequest(msg) {
+  hasVoted = (msg.player === myName); // submitter auto-voted accept
+  $('voteWord').textContent = msg.word;
+  $('voteQuestion').textContent = `${msg.player}さんが「${msg.word}」を入力しました`;
+  $('voteGenreHint').textContent = `ジャンル「${msg.genre}」のリストにない単語です。認めますか？`;
+  updateVoteProgress(msg.voteCount || 0, msg.totalPlayers || 0);
+  $('voteOverlay').classList.remove('hidden');
+
+  if (hasVoted) {
+    $('voteButtonArea').classList.add('hidden');
+    $('voteWaiting').classList.remove('hidden');
+  } else {
+    $('voteButtonArea').classList.remove('hidden');
+    $('voteWaiting').classList.add('hidden');
+  }
+
+  // Vote countdown timer
+  let voteTimeLeft = 15;
+  $('voteTimer').textContent = `${voteTimeLeft}秒で自動判定`;
+  clearInterval(voteTimerInterval);
+  voteTimerInterval = setInterval(() => {
+    voteTimeLeft--;
+    if (voteTimeLeft <= 0) {
+      clearInterval(voteTimerInterval);
+      $('voteTimer').textContent = '判定中…';
+    } else {
+      $('voteTimer').textContent = `${voteTimeLeft}秒で自動判定`;
+    }
+  }, 1000);
+}
+
+function onVoteUpdate(msg) {
+  updateVoteProgress(msg.voteCount || 0, msg.totalPlayers || 0);
+}
+
+function updateVoteProgress(count, total) {
+  $('voteProgressText').textContent = `${count} / ${total} 投票済み`;
+  const pct = total > 0 ? (count / total * 100) : 0;
+  $('voteProgressBar').style.width = pct + '%';
+}
+
+function onVoteResult(msg) {
+  clearInterval(voteTimerInterval);
+  $('voteOverlay').classList.add('hidden');
+  if (msg.accepted) {
+    addMessage(msg.message || `投票により「${msg.word}」が承認されました`, 'success');
+  } else {
+    addMessage(msg.message || `投票により「${msg.word}」は却下されました`, 'error');
+  }
+}
+
+function castVote(accept) {
+  if (hasVoted) return;
+  hasVoted = true;
+  send({ type: 'vote', accept });
+  $('voteButtonArea').classList.add('hidden');
+  $('voteWaiting').classList.remove('hidden');
 }
 
 function esc(str) {

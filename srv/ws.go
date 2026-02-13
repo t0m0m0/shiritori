@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -25,6 +26,7 @@ type WSMessage struct {
 	RoomID   string        `json:"roomId,omitempty"`
 	Word     string        `json:"word,omitempty"`
 	Settings *RoomSettings `json:"settings,omitempty"`
+	Accept   *bool         `json:"accept,omitempty"` // for vote messages
 
 	// Response fields
 	Success bool        `json:"success,omitempty"`
@@ -174,6 +176,17 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			s.handleAnswer(currentRoom, playerName, msg.Word)
 
+		case "vote":
+			if currentRoom == nil || playerName == "" {
+				sendError(conn, "ルームに参加していません")
+				continue
+			}
+			if msg.Accept == nil {
+				sendError(conn, "投票内容が必要です")
+				continue
+			}
+			s.handleVote(currentRoom, playerName, *msg.Accept)
+
 		default:
 			sendError(conn, fmt.Sprintf("unknown message type: %s", msg.Type))
 		}
@@ -310,9 +323,10 @@ func (s *Server) handleStartGame(room *Room) {
 }
 
 func (s *Server) handleAnswer(room *Room, playerName, word string) {
-	ok, msg := room.ValidateAndSubmitWord(word, playerName)
+	result, msg := room.ValidateAndSubmitWord(word, playerName)
 
-	if !ok {
+	switch result {
+	case ValidateRejected:
 		// Send error only to the submitting player
 		room.mu.Lock()
 		if p, exists := room.Players[playerName]; exists {
@@ -326,10 +340,101 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 			}
 		}
 		room.mu.Unlock()
+
+	case ValidateVote:
+		// Start vote — broadcast to all players
+		room.mu.Lock()
+		voteCount := 0
+		totalPlayers := len(room.Players)
+		if room.pendingVote != nil {
+			voteCount = len(room.pendingVote.Votes)
+		}
+		room.mu.Unlock()
+
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":         "vote_request",
+			"word":         word,
+			"player":       playerName,
+			"genre":        room.Settings.Genre,
+			"message":      msg,
+			"voteCount":    voteCount,
+			"totalPlayers": totalPlayers,
+		}))
+
+		// Start a 15-second vote timer
+		go func() {
+			time.Sleep(15 * time.Second)
+			resolved, accepted := room.ForceResolveVote()
+			if resolved {
+				s.broadcastVoteResult(room, word, playerName, accepted)
+			}
+		}()
+
+	case ValidateOK:
+		s.broadcastWordAccepted(room, word, playerName)
+	}
+}
+
+func (s *Server) handleVote(room *Room, playerName string, accept bool) {
+	allVoted, accepted := room.CastVote(playerName, accept)
+
+	// Broadcast vote progress
+	room.mu.Lock()
+	var voteCount, totalPlayers int
+	var voteWord string
+	if room.pendingVote != nil {
+		voteCount = len(room.pendingVote.Votes)
+		voteWord = room.pendingVote.Word
+	}
+	totalPlayers = len(room.Players)
+	room.mu.Unlock()
+
+	if !allVoted {
+		// Notify progress
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":         "vote_update",
+			"voteCount":    voteCount,
+			"totalPlayers": totalPlayers,
+		}))
 		return
 	}
 
-	// Success — broadcast to all
+	// Vote complete
+	room.mu.Lock()
+	voterName := ""
+	if room.pendingVote != nil {
+		voterName = room.pendingVote.Player
+	}
+	room.mu.Unlock()
+	if voterName == "" {
+		voterName = playerName
+	}
+	s.broadcastVoteResult(room, voteWord, voterName, accepted)
+}
+
+func (s *Server) broadcastVoteResult(room *Room, word, playerName string, accepted bool) {
+	if accepted {
+		// Word accepted via vote — broadcast as normal word accepted
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":    "vote_result",
+			"word":    word,
+			"player":  playerName,
+			"accepted": true,
+			"message": fmt.Sprintf("投票により「%s」が承認されました！", word),
+		}))
+		s.broadcastWordAccepted(room, word, playerName)
+	} else {
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":     "vote_result",
+			"word":     word,
+			"player":   playerName,
+			"accepted": false,
+			"message":  fmt.Sprintf("投票により「%s」は却下されました", word),
+		}))
+	}
+}
+
+func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
 	hiragana := toHiragana(word)
 	nextChar := getLastChar(hiragana)
 
