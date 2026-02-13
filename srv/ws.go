@@ -793,6 +793,9 @@ func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
 		nextTurn = room.TurnOrder[room.TurnIndex]
 	}
 	lives := room.getLivesLocked()
+	scores := room.getScoresLocked()
+	history := make([]WordEntry, len(room.History))
+	copy(history, room.History)
 	room.mu.Unlock()
 
 	room.Broadcast(mustMarshal(map[string]any{
@@ -800,8 +803,8 @@ func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
 		"word":        word,
 		"player":      playerName,
 		"currentWord": word,
-		"scores":      room.GetScores(),
-		"history":     room.History,
+		"scores":      scores,
+		"history":     history,
 		"currentTurn": nextTurn,
 		"lives":       lives,
 	}))
