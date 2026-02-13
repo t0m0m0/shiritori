@@ -7,7 +7,7 @@
  */
 
 /* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Zen+Antique&family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Maru+Gothic:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Zen+Antique+Soft&family=Shippori+Mincho:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap');
 
 /* ══════════════════════════════════════════════════════════════
    §1  CSS Custom Property Overrides
@@ -46,59 +46,30 @@
    §2  Typography
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] body {
-  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  font-weight: 300;
 }
 
 [data-theme="wamo"] button {
-  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
 }
 
 [data-theme="wamo"] input,
 [data-theme="wamo"] select {
-  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
 }
 
 
 /* ══════════════════════════════════════════════════════════════
-   §3  Body — Washi Paper Texture (CSS-only)
+   §3  Body — Washi + Shoji Grid
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] body {
   background-color: #f5f0e8;
+  /* Shoji lattice grid overlay */
   background-image:
-    /* Fine noise / fiber grain */
-    repeating-linear-gradient(
-      135deg,
-      transparent 0px,
-      transparent 2px,
-      rgba(139, 119, 90, .04) 2px,
-      rgba(139, 119, 90, .04) 3px
-    ),
-    repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 4px,
-      rgba(139, 119, 90, .025) 4px,
-      rgba(139, 119, 90, .025) 5px
-    ),
-    /* Larger paper fibers */
-    repeating-linear-gradient(
-      97deg,
-      transparent 0px,
-      transparent 8px,
-      rgba(160, 140, 110, .03) 8px,
-      rgba(160, 140, 110, .03) 9px
-    ),
-    /* Subtle warm variation */
-    radial-gradient(
-      ellipse at 30% 20%,
-      rgba(210, 190, 160, .15) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse at 80% 80%,
-      rgba(200, 180, 150, .10) 0%,
-      transparent 50%
-    );
+    linear-gradient(90deg, transparent 49.7%, rgba(26,26,46,.03) 49.7%, rgba(26,26,46,.03) 50.3%, transparent 50.3%),
+    linear-gradient(0deg, transparent 49.7%, rgba(26,26,46,.02) 49.7%, rgba(26,26,46,.02) 50.3%, transparent 50.3%);
+  background-size: 120px 120px;
 }
 
 
@@ -109,21 +80,55 @@
   background: #1a1a2e;
   background-size: auto;
   animation: none;
-  border-top: 3px solid #c53d43;
+  border-top: none;
   color: #f5f0e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  overflow: hidden;
+  position: relative;
 }
 
-/* Remove the rounded bottom pseudo-element */
+/* Sumi-nagashi ink flow background */
+[data-theme="wamo"] .header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(197,61,67,.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 30%, rgba(184,134,11,.1) 0%, transparent 40%);
+  pointer-events: none;
+}
+
 [data-theme="wamo"] .header::after {
   display: none;
 }
 
 [data-theme="wamo"] .header h1 {
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
   font-weight: 400;
-  letter-spacing: .12em;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, .4);
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  writing-mode: vertical-rl;
+  letter-spacing: .3em;
+  line-height: 1.6;
+  text-shadow: 0 2px 12px rgba(0,0,0,.3);
   color: #f5f0e8;
+  position: relative;
+  padding: 1rem 0;
+}
+
+/* Shu vertical accent bar next to title */
+[data-theme="wamo"] .header h1::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -1rem;
+  width: 3px;
+  height: 100px;
+  background: #c53d43;
+  border-radius: 2px;
+  transform: translateY(-50%);
 }
 
 [data-theme="wamo"] .header a {
@@ -132,8 +137,11 @@
 
 [data-theme="wamo"] .header p {
   font-family: 'Shippori Mincho', serif;
-  opacity: .7;
-  letter-spacing: .08em;
+  writing-mode: vertical-rl;
+  letter-spacing: .2em;
+  opacity: .5;
+  font-size: .75rem;
+  position: relative;
 }
 
 
@@ -141,22 +149,42 @@
    §5  Cards — Washi Surface, Vermillion Left Border
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .card {
-  background: var(--surface);
-  border-radius: 2px;
+  background: rgba(250,246,239,.7);
+  backdrop-filter: blur(4px);
+  border-radius: 0;
   border-left: 3px solid #c53d43;
-  box-shadow: 0 1px 8px rgba(26, 26, 46, .06);
+  box-shadow: none;
+  position: relative;
+}
+
+/* Corner decoration — top-right L bracket */
+[data-theme="wamo"] .card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 20px;
+  height: 20px;
+  border-top: 2px solid #c53d43;
+  border-right: 2px solid #c53d43;
+  opacity: .35;
+  pointer-events: none;
 }
 
 [data-theme="wamo"] .card h2 {
   font-family: 'Shippori Mincho', serif;
   color: #1a1a2e;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: .06em;
 }
 
 [data-theme="wamo"] .card h2::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
   background: #c53d43;
-  border-radius: 0;
+  border-radius: 50%;
 }
 
 
@@ -165,18 +193,35 @@
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .btn {
   border-radius: 2px;
-  font-family: 'Zen Maru Gothic', sans-serif;
-  letter-spacing: .03em;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 500;
+  letter-spacing: .08em;
+  transition: all .25s;
 }
 
 [data-theme="wamo"] .btn-primary {
+  background: #1a1a2e;
+  color: #f5f0e8;
+  position: relative;
+  overflow: hidden;
+  border-color: #1a1a2e;
+}
+
+/* Shu accent underline on primary buttons */
+[data-theme="wamo"] .btn-primary::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
   background: #c53d43;
-  color: #fff;
 }
 
 [data-theme="wamo"] .btn-primary:hover {
-  background: #a3232a;
-  box-shadow: 0 4px 16px rgba(197, 61, 67, .3);
+  background: #2a2a44;
+  box-shadow: none;
+  transform: none;
 }
 
 [data-theme="wamo"] .btn-accent {
@@ -191,7 +236,7 @@
 [data-theme="wamo"] .btn-outline {
   background: transparent;
   color: #1a1a2e;
-  border: 2px solid #1a1a2e;
+  border: 1px solid rgba(26,26,46,.2);
 }
 
 [data-theme="wamo"] .btn-outline:hover {
@@ -217,32 +262,42 @@
    §7  Current Word Area — Ensō Circle Effect
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .current-word-area {
-  background:
-    /* Ensō — faint brush circle */
-    radial-gradient(
-      circle at 50% 50%,
-      transparent 42%,
-      rgba(26, 26, 46, .06) 43%,
-      rgba(26, 26, 46, .06) 46%,
-      transparent 47%
-    ),
-    /* Washi base */
-    linear-gradient(180deg, #f5f0e8, #eee8db);
-  border-radius: 2px;
-  border-bottom: 2px solid #c53d43;
+  background: transparent;
+  border-radius: 0;
+  border-bottom: none;
+  position: relative;
+  padding: 3rem 1rem;
+}
+
+/* Incomplete ensō — broken brush circle */
+[data-theme="wamo"] .current-word-area::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 180px;
+  height: 180px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(26,26,46,.06);
+  border-radius: 50%;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  rotate: -30deg;
+  pointer-events: none;
 }
 
 [data-theme="wamo"] .current-word {
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
   font-weight: 400;
   color: #1a1a2e;
-  letter-spacing: .15em;
+  letter-spacing: .2em;
 }
 
 [data-theme="wamo"] .current-word-label {
   font-family: 'Shippori Mincho', serif;
-  color: #5c5c6e;
-  letter-spacing: .1em;
+  color: var(--ink3, #999);
+  letter-spacing: .15em;
+  font-size: .7rem;
 }
 
 
@@ -251,16 +306,16 @@
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .form-group input,
 [data-theme="wamo"] .form-group select {
-  border: 1px solid #1a1a2e;
+  border: 1px solid rgba(26,26,46,.15);
   border-radius: 2px;
-  background: var(--surface);
+  background: rgba(255,255,255,.5);
   color: #1a1a2e;
 }
 
 [data-theme="wamo"] .form-group input:focus,
 [data-theme="wamo"] .form-group select:focus {
   border-color: #c53d43;
-  box-shadow: 0 0 0 2px rgba(197, 61, 67, .15);
+  box-shadow: none;
 }
 
 [data-theme="wamo"] .form-group label {
@@ -274,17 +329,21 @@
    §9  Answer Area
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .answer-area input {
-  border: 1px solid #1a1a2e;
-  border-radius: 2px;
-  background: var(--surface);
-  font-family: 'Zen Antique', serif;
+  border: none;
+  border-bottom: 1px solid #1a1a2e;
+  border-radius: 0;
+  background: transparent;
+  font-family: 'Zen Antique Soft', serif;
   font-size: 1.3rem;
   letter-spacing: .08em;
+  padding: .6rem .2rem;
 }
 
 [data-theme="wamo"] .answer-area input:focus {
   border-color: #c53d43;
-  box-shadow: 0 0 0 2px rgba(197, 61, 67, .15);
+  border-bottom-width: 2px;
+  box-shadow: none;
+  outline: none;
 }
 
 
@@ -292,21 +351,22 @@
    §10  Kana Row Chips
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .kana-row-chip {
-  border: 1px solid #1a1a2e;
+  border: 1px solid rgba(26,26,46,.2);
   border-radius: 2px;
-  background: var(--surface);
+  background: transparent;
   color: #1a1a2e;
-  font-family: 'Zen Maru Gothic', sans-serif;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  transition: all .2s;
 }
 
 [data-theme="wamo"] .kana-row-chip:hover {
-  background: #eee8db;
+  background: var(--surface2);
 }
 
 [data-theme="wamo"] .kana-row-chip.selected {
   background: #c53d43;
   color: #fff;
-  border-color: #a3232a;
+  border-color: #c53d43;
 }
 
 [data-theme="wamo"] .kana-row-select-all {
@@ -318,13 +378,16 @@
    §11  Room Items
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .room-item {
-  background: var(--surface);
-  border-radius: 2px;
-  border-left: 3px solid #c53d43;
+  background: transparent;
+  border-radius: 0;
+  border-left: none;
+  border-bottom: 1px solid rgba(26,26,46,.06);
+  transition: padding-left .2s;
 }
 
 [data-theme="wamo"] .room-item:hover {
-  background: #eee8db;
+  background: transparent;
+  padding-left: .5rem;
 }
 
 [data-theme="wamo"] .room-name {
@@ -422,7 +485,7 @@
 }
 
 [data-theme="wamo"] .history-word {
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
   color: #1a1a2e;
   font-weight: 400;
   letter-spacing: .05em;
@@ -446,13 +509,28 @@
 
 [data-theme="wamo"] .game-over-card {
   background: #faf6ef;
-  border-radius: 2px;
-  border-top: 3px solid #c53d43;
+  border-radius: 0;
+  border-top: none;
+  border-left: 3px solid #c53d43;
   box-shadow: 0 20px 60px rgba(26, 26, 46, .3);
+  position: relative;
+}
+
+/* Corner bracket on game-over card */
+[data-theme="wamo"] .game-over-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 20px;
+  height: 20px;
+  border-top: 2px solid #c53d43;
+  border-right: 2px solid #c53d43;
+  opacity: .35;
 }
 
 [data-theme="wamo"] .game-over-card h2 {
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
   color: #c53d43;
   letter-spacing: .08em;
 }
@@ -490,7 +568,7 @@
 
 [data-theme="wamo"] .game-over-history-word {
   color: #1a1a2e;
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
 }
 
 [data-theme="wamo"] .game-over-history-chain {
@@ -508,8 +586,9 @@
 
 [data-theme="wamo"] .vote-card {
   background: #faf6ef;
-  border-radius: 2px;
-  border-top: 3px solid #c53d43;
+  border-radius: 0;
+  border-top: none;
+  border-left: 3px solid #c53d43;
   box-shadow: 0 20px 60px rgba(26, 26, 46, .3);
 }
 
@@ -520,7 +599,7 @@
 }
 
 [data-theme="wamo"] .vote-word {
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
   color: #1a1a2e;
   letter-spacing: .1em;
 }
@@ -556,9 +635,10 @@
    §17  Invite Card
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .invite-card {
-  background: linear-gradient(135deg, #f5f0e8, #eee8db);
+  background: rgba(250,246,239,.7);
+  backdrop-filter: blur(4px);
   border-left: 3px solid #c53d43;
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 [data-theme="wamo"] .invite-card .invite-info {
@@ -600,7 +680,7 @@
   color: #1a1a2e;
   border-radius: 2px;
   border: 1px solid #d5cec2;
-  font-family: 'Zen Maru Gothic', sans-serif;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
 }
 
 [data-theme="wamo"] .waiting-player-list li .owner-badge {
@@ -614,7 +694,7 @@
    ══════════════════════════════════════════════════════════════ */
 [data-theme="wamo"] .score-popup {
   color: #b8860b;
-  font-family: 'Zen Antique', serif;
+  font-family: 'Zen Antique Soft', serif;
   text-shadow: 0 1px 4px rgba(26, 26, 46, .2);
 }
 
@@ -666,22 +746,57 @@
 /* ══════════════════════════════════════════════════════════════
    §24  Lobby-Specific Overrides
    ══════════════════════════════════════════════════════════════ */
+/* Name section: shu-to-gold gradient accent bar */
+[data-theme="wamo"] #lobby .player-name-section {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+  padding: 2rem 0;
+  border-top: 1px solid rgba(26,26,46,.08);
+  border-bottom: 1px solid rgba(26,26,46,.08);
+  margin: 2rem 0;
+  position: relative;
+}
+
+[data-theme="wamo"] #lobby .player-name-section::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, #c53d43, #b8860b);
+  border-radius: 1px;
+}
+
 [data-theme="wamo"] #lobby .player-name-section input {
-  border: 1px solid #1a1a2e;
-  border-radius: 2px;
-  background: var(--surface);
-  font-family: 'Zen Antique', serif;
-  letter-spacing: .08em;
+  border: none;
+  border-bottom: 1px solid #1a1a2e;
+  border-radius: 0;
+  background: transparent;
+  font-family: 'Zen Antique Soft', serif;
+  font-size: 1.4rem;
+  letter-spacing: .1em;
+  padding: .6rem 0;
 }
 
 [data-theme="wamo"] #lobby .player-name-section input:focus {
   border-style: solid;
   border-color: #c53d43;
+  border-bottom-width: 2px;
+  outline: none;
+  box-shadow: none;
+}
+
+[data-theme="wamo"] #lobby .player-name-section input::placeholder {
+  color: #ccc;
+  font-family: 'Zen Antique Soft', serif;
 }
 
 [data-theme="wamo"] .room-title {
   font-family: 'Shippori Mincho', serif;
-  color: #c53d43;
+  color: #1a1a2e;
+  letter-spacing: .05em;
 }
 
 
@@ -750,7 +865,7 @@
 
 /* Two-column layout: form left, rules right */
 [data-theme="wamo"] .rules-table {
-  font-family: "Zen Maru Gothic", sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
 }
 
@@ -768,7 +883,7 @@
 }
 
 [data-theme="wamo"] .rules-desc {
-  font-family: "Zen Maru Gothic", sans-serif;
+  font-family: "Zen Kaku Gothic New", sans-serif;
   font-weight: 300;
   color: #888;
 }
@@ -791,7 +906,7 @@
 
 /* Game header room title */
 [data-theme="wamo"] .game-rules .rule-badge {
-  font-family: 'Zen Maru Gothic', sans-serif;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
 }
 
 /* ── Theme Switcher for Wamo ── */
