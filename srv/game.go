@@ -61,42 +61,10 @@ type Room struct {
 	OnGameOver func(room *Room, result map[string]any) map[string]any
 
 	// Vote management
-	pendingVote *PendingVote
+	Votes *VoteManager
 }
 
-// PendingVote holds state for an in-progress genre vote.
-type PendingVote struct {
-	Word       string
-	Hiragana   string
-	Player     string
-	Challenger string
-	Votes      map[string]bool // player name -> accept (true) / reject (false)
-	Type       string          // "genre" or "challenge"
-	Reason     string
-	Timer      *time.Timer
-	Resolved   bool
-}
 
-// VoteResolution is the outcome of a vote.
-type VoteResolution struct {
-	Type       string
-	Word       string
-	Player     string
-	Challenger string
-	Accepted   bool
-	Reverted   bool
-}
-
-// VoteInfo describes a new vote request.
-type VoteInfo struct {
-	Type       string
-	Word       string
-	Player     string
-	Challenger string
-	Reason     string
-	VoteCount  int
-	Total      int
-}
 
 // RoomManager manages all active rooms.
 type RoomManager struct {
@@ -338,7 +306,9 @@ func (r *Room) StartGame() error {
 
 	r.History = []WordEntry{}
 	r.UsedWords = make(map[string]bool)
-	r.pendingVote = nil
+	if r.Votes != nil {
+		r.Votes.Clear()
+	}
 
 	// Start timer if applicable
 	if r.Settings.TimeLimit > 0 && r.Timer != nil {
@@ -391,7 +361,7 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 	}
 
 	// Reject if a vote is in progress
-	if r.pendingVote != nil && !r.pendingVote.Resolved {
+	if r.Votes != nil && r.Votes.HasPendingVote() {
 		return ValidateRejected, "投票中です。投票が終わるまでお待ちください"
 	}
 
@@ -504,7 +474,9 @@ func (r *Room) applyWordLocked(word, hiragana, playerName string) {
 	r.resetTimer()
 
 	// Clear any resolved vote
-	r.pendingVote = nil
+	if r.Votes != nil {
+		r.Votes.Clear()
+	}
 }
 
 // applyPenaltyLocked decrements a player's lives. Caller must hold r.mu.
@@ -566,216 +538,106 @@ func (r *Room) GetLives() map[string]int {
 	return r.getLivesLocked()
 }
 
-// CastVote records a player's vote and returns resolution if complete.
+// CastVote delegates to VoteManager. If resolved and challenge rejected, applies revert to game state.
 func (r *Room) CastVote(playerName string, accept bool) (resolved bool, result VoteResolution) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.pendingVote == nil || r.pendingVote.Resolved {
-		return false, VoteResolution{}
+	resolved, result = r.Votes.CastVote(playerName, accept)
+	if resolved {
+		r.applyVoteResult(&result)
 	}
-
-	// Only players in the room can vote
-	if _, ok := r.Players[playerName]; !ok {
-		return false, VoteResolution{}
-	}
-
-	// The challenged player cannot vote in challenge votes (they can send a rebuttal instead)
-	if r.pendingVote.Type == "challenge" && r.pendingVote.Player == playerName {
-		return false, VoteResolution{}
-	}
-
-	r.pendingVote.Votes[playerName] = accept
-
-	// Check if all eligible voters have voted
-	eligibleVoters := r.countEligibleVotersLocked()
-	if len(r.pendingVote.Votes) < eligibleVoters {
-		return false, VoteResolution{}
-	}
-
-	return r.resolveVoteLocked()
+	return
 }
 
-// ForceResolveVote resolves the vote by timeout (majority wins, tie = reject).
+// ForceResolveVote delegates to VoteManager. Applies revert if challenge rejected.
 func (r *Room) ForceResolveVote() (resolved bool, result VoteResolution) {
+	resolved, result = r.Votes.ForceResolveVote()
+	if resolved {
+		r.applyVoteResult(&result)
+	}
+	return
+}
+
+// applyVoteResult applies the game-state side effects of a resolved vote.
+func (r *Room) applyVoteResult(result *VoteResolution) {
+	if result.Type == "genre" {
+		if result.Accepted {
+			// Get the pending vote info before it's cleared
+			pv := r.Votes.GetPending()
+			if pv != nil {
+				r.mu.Lock()
+				r.applyWordLocked(pv.Word, pv.Hiragana, pv.Player)
+				r.mu.Unlock()
+			}
+		}
+		r.Votes.Clear()
+		return
+	}
+
+	// Challenge vote
+	if result.Accepted || !result.Reverted {
+		return
+	}
+
+	// Challenge rejected — revert the word
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.pendingVote == nil || r.pendingVote.Resolved {
-		return false, VoteResolution{}
-	}
-
-	return r.resolveVoteLocked()
-}
-
-// countEligibleVotersLocked returns the number of players who can vote.
-// For challenge votes, the challenged player is excluded. Caller must hold r.mu.
-func (r *Room) countEligibleVotersLocked() int {
-	total := len(r.Players)
-	if r.pendingVote != nil && r.pendingVote.Type == "challenge" {
-		// Exclude the challenged player from voting
-		if _, ok := r.Players[r.pendingVote.Player]; ok {
-			total--
-		}
-	}
-	return total
-}
-
-func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
-	r.pendingVote.Resolved = true
-	acceptCount := 0
-	rejectCount := 0
-	for _, v := range r.pendingVote.Votes {
-		if v {
-			acceptCount++
-		} else {
-			rejectCount++
-		}
-	}
-	// Non-voters count as reject (only among eligible voters)
-	eligibleVoters := r.countEligibleVotersLocked()
-	rejectCount += eligibleVoters - len(r.pendingVote.Votes)
-
-	accepted := acceptCount > rejectCount
-	result = VoteResolution{
-		Type:       r.pendingVote.Type,
-		Word:       r.pendingVote.Word,
-		Player:     r.pendingVote.Player,
-		Challenger: r.pendingVote.Challenger,
-		Accepted:   accepted,
-	}
-
-	if r.pendingVote.Type == "genre" {
-		if accepted {
-			r.applyWordLocked(r.pendingVote.Word, r.pendingVote.Hiragana, r.pendingVote.Player)
-		} else {
-			// Vote rejected — clear pending vote, player keeps their turn
-			r.pendingVote = nil
-		}
-		return true, result
-	}
-
-	// Challenge vote: accepted = word stays; rejected = word removed, original player retries.
-	if accepted {
-		r.pendingVote = nil
-		return true, result
-	}
-
-	// Revert last word. The original player keeps their turn but loses a life.
 	if len(r.History) > 0 {
 		r.History = r.History[:len(r.History)-1]
 	}
-	delete(r.UsedWords, r.pendingVote.Hiragana)
+	delete(r.UsedWords, toHiragana(result.Word))
 
-	// Revert the score that was awarded when the word was originally accepted
-	if p, ok := r.Players[r.pendingVote.Player]; ok {
+	// Revert score
+	if p, ok := r.Players[result.Player]; ok {
 		if p.Score > 0 {
 			p.Score--
 		}
 	}
+
 	prevWord := ""
 	if len(r.History) > 0 {
 		prevWord = r.History[len(r.History)-1].Word
 	}
 
-	// Turn stays with the original player (find their index)
-	originalPlayerIndex := -1
+	// Turn stays with the original player
 	for i, name := range r.TurnOrder {
-		if name == r.pendingVote.Player {
-			originalPlayerIndex = i
+		if name == result.Player {
+			r.TurnIndex = i
 			break
 		}
 	}
-	if originalPlayerIndex >= 0 {
-		r.TurnIndex = originalPlayerIndex
-	}
 
-	// Penalize the original player (lose a life)
-	r.applyPenaltyLocked(r.pendingVote.Player)
+	// Penalize the original player
+	r.applyPenaltyLocked(result.Player)
 
-	result.Reverted = true
-	result.Player = r.pendingVote.Player
-	result.Challenger = r.pendingVote.Challenger
-	result.Word = r.pendingVote.Word
-	result.Accepted = false
-
-	// Restore current word to previous
 	r.CurrentWord = prevWord
-	// Reset timer so the player gets a fresh attempt
 	r.resetTimer()
-
-	r.pendingVote = nil
-	return true, result
+	r.mu.Unlock()
 }
 
-// StartChallengeVote starts a vote to challenge a word.
+// StartChallengeVote starts a vote to challenge the last word.
 func (r *Room) StartChallengeVote(challengerName string) (VoteInfo, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if r.Status != "playing" {
+		r.mu.Unlock()
 		return VoteInfo{}, fmt.Errorf("ゲームが開始されていません")
 	}
-	if r.pendingVote != nil && !r.pendingVote.Resolved {
-		return VoteInfo{}, fmt.Errorf("投票中です。投票が終わるまでお待ちください")
-	}
 	if len(r.History) == 0 {
+		r.mu.Unlock()
 		return VoteInfo{}, fmt.Errorf("まだ単語がありません")
 	}
-	if _, ok := r.Players[challengerName]; !ok {
-		return VoteInfo{}, fmt.Errorf("ルームに参加していません")
-	}
 	last := r.History[len(r.History)-1]
-	if last.Player == challengerName {
-		return VoteInfo{}, fmt.Errorf("自分の単語には指摘できません")
-	}
-	hiragana := toHiragana(last.Word)
+	r.mu.Unlock()
 
-	r.pendingVote = &PendingVote{
-		Word:       last.Word,
-		Hiragana:   hiragana,
-		Player:     last.Player,
-		Challenger: challengerName,
-		Votes:      make(map[string]bool),
-		Type:       "challenge",
-		Reason:     fmt.Sprintf("「%s」は存在しない単語かもしれません", last.Word),
+	playerExists := func(name string) bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		_, ok := r.Players[name]
+		return ok
 	}
-
-	// Challenger auto-votes reject (word should be removed)
-	r.pendingVote.Votes[challengerName] = false
-
-	info := VoteInfo{
-		Type:       "challenge",
-		Word:       last.Word,
-		Player:     last.Player,
-		Challenger: challengerName,
-		Reason:     r.pendingVote.Reason,
-		VoteCount:  len(r.pendingVote.Votes),
-		Total:      r.countEligibleVotersLocked(),
-	}
-	return info, nil
+	return r.Votes.StartChallengeVote(challengerName, last, playerExists)
 }
 
-// WithdrawChallenge allows the challenger to withdraw their challenge.
-// Returns true if the challenge was successfully withdrawn.
+// WithdrawChallenge delegates to VoteManager.
 func (r *Room) WithdrawChallenge(challengerName string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.pendingVote == nil || r.pendingVote.Resolved {
-		return false
-	}
-	if r.pendingVote.Type != "challenge" {
-		return false
-	}
-	if r.pendingVote.Challenger != challengerName {
-		return false
-	}
-
-	// Clear the pending vote — the word stays as-is
-	r.pendingVote.Resolved = true
-	r.pendingVote = nil
-	return true
+	return r.Votes.WithdrawChallenge(challengerName)
 }
 
 // getScoresLocked returns a map of player scores. Caller must hold r.mu.

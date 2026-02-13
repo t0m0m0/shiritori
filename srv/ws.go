@@ -340,6 +340,21 @@ func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *R
 	room.Owner = name
 	room.OnGameOver = s.makeGameOverCallback()
 
+	// Set up vote manager
+	room.Votes = NewVoteManager(
+		func(name string) bool {
+			room.mu.Lock()
+			defer room.mu.Unlock()
+			_, ok := room.Players[name]
+			return ok
+		},
+		func() int {
+			room.mu.Lock()
+			defer room.mu.Unlock()
+			return len(room.Players)
+		},
+	)
+
 	// Set up timer with callbacks
 	room.Timer = NewTimerManager(
 		func(timeLeft int) {
@@ -522,17 +537,15 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 
 	case ValidateVote:
 		// Start vote — broadcast to all players
-		room.mu.Lock()
 		voteCount := 0
 		voteReason := ""
 		voteType := ""
-		if room.pendingVote != nil {
-			voteCount = len(room.pendingVote.Votes)
-			voteReason = room.pendingVote.Reason
-			voteType = room.pendingVote.Type
+		if pv := room.Votes.GetPending(); pv != nil {
+			voteCount = len(pv.Votes)
+			voteReason = pv.Reason
+			voteType = pv.Type
 		}
-		eligibleVoters := room.countEligibleVotersLocked()
-		room.mu.Unlock()
+		_, eligibleVoters := room.Votes.VoteCount()
 
 		room.Broadcast(mustMarshal(map[string]any{
 			"type":         "vote_request",
@@ -585,8 +598,8 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 		if gameOver {
 			room.mu.Lock()
 			room.Status = "finished"
-			room.pendingVote = nil
 			room.mu.Unlock()
+			room.Votes.Clear()
 			room.StopTimer()
 
 			reason := "ゲーム終了"
@@ -613,13 +626,7 @@ func (s *Server) handleVote(room *Room, playerName string, accept bool) {
 	resolved, result := room.CastVote(playerName, accept)
 
 	// Broadcast vote progress
-	room.mu.Lock()
-	var voteCount int
-	if room.pendingVote != nil {
-		voteCount = len(room.pendingVote.Votes)
-	}
-	eligibleVoters := room.countEligibleVotersLocked()
-	room.mu.Unlock()
+	voteCount, eligibleVoters := room.Votes.VoteCount()
 
 	if !resolved {
 		// Notify progress
@@ -635,17 +642,14 @@ func (s *Server) handleVote(room *Room, playerName string, accept bool) {
 }
 
 func (s *Server) handleRebuttal(room *Room, playerName, rebuttal string) {
-	room.mu.Lock()
 	// Only the challenged player (the word submitter) can send a rebuttal
-	if room.pendingVote == nil || room.pendingVote.Resolved || room.pendingVote.Type != "challenge" {
-		room.mu.Unlock()
+	pv := room.Votes.GetPending()
+	if pv == nil || pv.Resolved || pv.Type != "challenge" {
 		return
 	}
-	if room.pendingVote.Player != playerName {
-		room.mu.Unlock()
+	if pv.Player != playerName {
 		return
 	}
-	room.mu.Unlock()
 
 	// Broadcast the rebuttal to all players
 	room.Broadcast(mustMarshal(map[string]any{
@@ -798,8 +802,8 @@ func (s *Server) broadcastVoteResult(room *Room, result VoteResolution) {
 	if gameOver {
 		room.mu.Lock()
 		room.Status = "finished"
-		room.pendingVote = nil
 		room.mu.Unlock()
+		room.Votes.Clear()
 		room.StopTimer()
 
 		reason := "ゲーム終了"

@@ -4,22 +4,44 @@ import (
 	"testing"
 )
 
-func TestChallengeBlocked2Players(t *testing.T) {
-	room := &Room{
+// newTestRoom creates a Room with VoteManager initialized for tests.
+func newTestRoom(players map[string]*Player, turnOrder []string) *Room {
+	r := &Room{
 		Settings: RoomSettings{
 			MinLen: 1,
 		},
-		Players: map[string]*Player{
-			"alice": {Name: "alice", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
-			"bob":   {Name: "bob", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
-		},
+		Players:     players,
 		CurrentWord: "",
 		Status:      "playing",
 		UsedWords:   map[string]bool{},
 		History:     []WordEntry{},
-		TurnOrder:   []string{"alice", "bob"},
-		TurnIndex:   0, // alice's turn
+		TurnOrder:   turnOrder,
+		TurnIndex:   0,
 	}
+	r.Votes = NewVoteManager(
+		func(name string) bool {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			_, ok := r.Players[name]
+			return ok
+		},
+		func() int {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			return len(r.Players)
+		},
+	)
+	return r
+}
+
+func TestChallengeBlocked2Players(t *testing.T) {
+	room := newTestRoom(
+		map[string]*Player{
+			"alice": {Name: "alice", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
+			"bob":   {Name: "bob", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
+		},
+		[]string{"alice", "bob"},
+	)
 
 	// Alice submits a word
 	result, msg := room.ValidateAndSubmitWord("しりとり", "alice")
@@ -35,21 +57,13 @@ func TestChallengeBlocked2Players(t *testing.T) {
 }
 
 func TestChallengeSelfWordBlocked(t *testing.T) {
-	room := &Room{
-		Settings: RoomSettings{
-			MinLen: 1,
-		},
-		Players: map[string]*Player{
+	room := newTestRoom(
+		map[string]*Player{
 			"alice": {Name: "alice", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"bob":   {Name: "bob", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
-		CurrentWord: "",
-		Status:      "playing",
-		UsedWords:   map[string]bool{},
-		History:     []WordEntry{},
-		TurnOrder:   []string{"alice", "bob"},
-		TurnIndex:   0, // alice's turn
-	}
+		[]string{"alice", "bob"},
+	)
 
 	// Alice submits a word
 	result, msg := room.ValidateAndSubmitWord("しりとり", "alice")
@@ -65,22 +79,14 @@ func TestChallengeSelfWordBlocked(t *testing.T) {
 }
 
 func TestChallenge3Players(t *testing.T) {
-	room := &Room{
-		Settings: RoomSettings{
-			MinLen: 1,
-		},
-		Players: map[string]*Player{
+	room := newTestRoom(
+		map[string]*Player{
 			"alice":   {Name: "alice", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"bob":     {Name: "bob", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"charlie": {Name: "charlie", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
-		CurrentWord: "",
-		Status:      "playing",
-		UsedWords:   map[string]bool{},
-		History:     []WordEntry{},
-		TurnOrder:   []string{"alice", "bob", "charlie"},
-		TurnIndex:   0, // alice's turn
-	}
+		[]string{"alice", "bob", "charlie"},
+	)
 
 	// Alice submits a word
 	result, msg := room.ValidateAndSubmitWord("しりとり", "alice")
@@ -102,22 +108,14 @@ func TestChallenge3Players(t *testing.T) {
 }
 
 func TestChallengeRejectedRevertsScore(t *testing.T) {
-	room := &Room{
-		Settings: RoomSettings{
-			MinLen: 1,
-		},
-		Players: map[string]*Player{
+	room := newTestRoom(
+		map[string]*Player{
 			"alice":   {Name: "alice", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"bob":     {Name: "bob", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"charlie": {Name: "charlie", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
-		CurrentWord: "",
-		Status:      "playing",
-		UsedWords:   map[string]bool{},
-		History:     []WordEntry{},
-		TurnOrder:   []string{"alice", "bob", "charlie"},
-		TurnIndex:   0, // alice's turn
-	}
+		[]string{"alice", "bob", "charlie"},
+	)
 
 	// Alice submits a word
 	result, msg := room.ValidateAndSubmitWord("しりとり", "alice")
@@ -157,23 +155,15 @@ func TestChallengeRejectedRevertsScore(t *testing.T) {
 }
 
 func TestChallengeAcceptedKeepsScore(t *testing.T) {
-	room := &Room{
-		Settings: RoomSettings{
-			MinLen: 1,
-		},
-		Players: map[string]*Player{
+	room := newTestRoom(
+		map[string]*Player{
 			"alice":   {Name: "alice", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"bob":     {Name: "bob", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"charlie": {Name: "charlie", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 			"dave":    {Name: "dave", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
-		CurrentWord: "",
-		Status:      "playing",
-		UsedWords:   map[string]bool{},
-		History:     []WordEntry{},
-		TurnOrder:   []string{"alice", "bob", "charlie", "dave"},
-		TurnIndex:   0, // alice's turn
-	}
+		[]string{"alice", "bob", "charlie", "dave"},
+	)
 
 	// Alice submits a word
 	result, msg := room.ValidateAndSubmitWord("しりとり", "alice")
