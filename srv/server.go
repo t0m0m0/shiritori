@@ -43,9 +43,9 @@ func (s *Server) setUpDatabase(dbPath string) error {
 	return nil
 }
 
-// HandleIndex serves the main page.
+// HandleIndex serves the React SPA index.html.
 func (s *Server) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	data, err := templatesFS.ReadFile("templates/index.html")
+	data, err := staticFS.ReadFile("static/dist/index.html")
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

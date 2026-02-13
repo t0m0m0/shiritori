@@ -1,0 +1,9 @@
+# Build artifacts
+shiritori-server
+db.sqlite3
+
+# Node
+frontend/node_modules/
+
+# Vite build output (embedded in Go binary)
+srv/static/dist/
