@@ -118,6 +118,9 @@ input,select{font-family:inherit;font-size:1rem}
 .invite-card .invite-info{font-weight:600;color:var(--primary)}
 .invite-card .invite-id{font-size:.9rem;color:var(--text2)}
 .invite-card .invite-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.invite-card .invite-room-title{
+  font-weight:700;font-size:1.05rem;margin-bottom:.35rem;color:var(--primary);
+}
 .room-list{list-style:none}
 .room-item{
   display:flex;align-items:center;justify-content:space-between;gap:.75rem;
@@ -745,7 +748,7 @@ function setInviteRoom(roomId) {
   if (!roomId) return;
   inviteRoomId = roomId;
   $('inviteCardTitle').textContent = '招待ルーム';
-  $('inviteCardRules').innerHTML = '';
+  $('inviteCardRules').innerHTML = '<span class="rule-badge">読み込み中…</span>';
   $('inviteCardHost').textContent = '';
   $('inviteCard').classList.remove('hidden');
   document.body.classList.add('invite-lobby');
@@ -758,7 +761,7 @@ function clearInviteRoomInfo() {
   $('inviteRoomHost').textContent = '';
   $('inviteRoomPlayers').innerHTML = '';
   $('inviteCardTitle').textContent = '招待ルーム';
-  $('inviteCardRules').innerHTML = '';
+  $('inviteCardRules').innerHTML = '<span class="rule-badge">読み込み中…</span>';
   $('inviteCardHost').textContent = '';
 }
 
@@ -947,6 +950,11 @@ function buildRoomBadges(room) {
   return [meta, ...badges].filter(Boolean).map(b => `<span class="rule-badge">${b}</span>`).join('');
 }
 
+function buildInviteBadges(room) {
+  const badges = buildRoomBadges(room);
+  return badges || '<span class="rule-badge">ルールなし</span>';
+}
+
 function renderRoomInfo(room) {
   if (!room) return;
   $('gameRoomTitle').textContent = room.name || 'ルーム';
@@ -960,7 +968,7 @@ function renderInviteRoomInfo(room) {
   $('inviteRoomRules').innerHTML = buildRoomBadges(room);
   $('inviteRoomHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
   $('inviteCardTitle').textContent = room.name || '招待ルーム';
-  $('inviteCardRules').innerHTML = buildRoomBadges(room);
+  $('inviteCardRules').innerHTML = buildInviteBadges(room);
   $('inviteCardHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
   const players = room.players || [];
   const list = $('inviteRoomPlayers');
