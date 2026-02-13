@@ -262,6 +262,13 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			s.handleRebuttal(currentRoom, playerName, msg.Rebuttal)
 
+		case "withdraw_challenge":
+			if currentRoom == nil || playerName == "" {
+				sendErr("ルームに参加していません")
+				continue
+			}
+			s.handleWithdrawChallenge(currentRoom, playerName)
+
 		default:
 			sendErr(fmt.Sprintf("unknown message type: %s", msg.Type))
 		}
@@ -528,6 +535,29 @@ func (s *Server) handleRebuttal(room *Room, playerName, rebuttal string) {
 		"type":     "rebuttal",
 		"player":   playerName,
 		"rebuttal": rebuttal,
+	}))
+}
+
+func (s *Server) handleWithdrawChallenge(room *Room, playerName string) {
+	if !room.WithdrawChallenge(playerName) {
+		room.mu.Lock()
+		if p, ok := room.Players[playerName]; ok {
+			select {
+			case p.Send <- mustMarshal(map[string]any{
+				"type":    "error",
+				"message": "指摘を取り下げることができません",
+			}):
+			default:
+			}
+		}
+		room.mu.Unlock()
+		return
+	}
+
+	room.Broadcast(mustMarshal(map[string]any{
+		"type":       "challenge_withdrawn",
+		"challenger": playerName,
+		"message":    fmt.Sprintf("%sさんが指摘を取り下げました", playerName),
 	}))
 }
 

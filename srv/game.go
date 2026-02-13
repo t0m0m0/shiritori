@@ -784,6 +784,28 @@ func (r *Room) StartChallengeVote(challengerName string) (VoteInfo, error) {
 	return info, nil
 }
 
+// WithdrawChallenge allows the challenger to withdraw their challenge.
+// Returns true if the challenge was successfully withdrawn.
+func (r *Room) WithdrawChallenge(challengerName string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.pendingVote == nil || r.pendingVote.Resolved {
+		return false
+	}
+	if r.pendingVote.Type != "challenge" {
+		return false
+	}
+	if r.pendingVote.Challenger != challengerName {
+		return false
+	}
+
+	// Clear the pending vote — the word stays as-is
+	r.pendingVote.Resolved = true
+	r.pendingVote = nil
+	return true
+}
+
 // getScoresLocked returns a map of player scores. Caller must hold r.mu.
 func (r *Room) getScoresLocked() map[string]int {
 	scores := make(map[string]int, len(r.Players))

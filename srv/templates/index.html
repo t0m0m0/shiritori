@@ -490,6 +490,14 @@ input,select{font-family:inherit;font-size:1rem}
 .rebuttal-display .rebuttal-sender {
   font-weight: 700; color: var(--primary); margin-right: .3rem;
 }
+/* withdraw */
+.withdraw-area {
+  margin-top: .8rem;
+  text-align: center;
+}
+.withdraw-area .btn {
+  font-size: .95rem;
+}
 /* lobby button disabled tooltip */
 .lobby-btn-wrap {
   position: relative;
@@ -735,6 +743,9 @@ input,select{font-family:inherit;font-size:1rem}
     </div>
     <div id="rebuttalDisplay" class="rebuttal-display hidden"></div>
     <div id="voteWaiting" class="vote-waiting hidden">投票済み。他のプレイヤーの投票を待っています…</div>
+    <div id="withdrawArea" class="withdraw-area hidden">
+      <button class="btn btn-outline" id="withdrawBtn" onclick="withdrawChallenge()">🔙 指摘を取り下げる</button>
+    </div>
     <div class="vote-progress">
       <span id="voteProgressText">0 / 0 投票済み</span>
       <div class="vote-progress-bar"><div class="vote-progress-bar-inner" id="voteProgressBar" style="width:0%"></div></div>
@@ -897,6 +908,7 @@ function handleMessage(msg) {
     case 'vote_update': onVoteUpdate(msg); break;
     case 'vote_result': onVoteResult(msg); break;
     case 'rebuttal': onRebuttal(msg); break;
+    case 'challenge_withdrawn': onChallengeWithdrawn(msg); break;
     case 'penalty': onPenalty(msg); break;
     case 'room_state': onJoined(msg); break;
     case 'error': addMessage(msg.message, 'error'); break;
@@ -1543,10 +1555,14 @@ function onVoteRequest(msg) {
   $('rebuttalDisplay').classList.add('hidden');
   $('rebuttalDisplay').innerHTML = '';
 
+  // Determine if this user is the challenger
+  const isChallenger = isChallenge && msg.challenger === myName;
+
   if (isChallengedPlayer) {
     // Challenged player: show rebuttal input instead of vote buttons
     $('voteButtonArea').classList.add('hidden');
     $('voteWaiting').classList.add('hidden');
+    $('withdrawArea').classList.add('hidden');
     $('rebuttalArea').classList.remove('hidden');
     $('rebuttalInput').value = '';
     setTimeout(() => $('rebuttalInput').focus(), 100);
@@ -1554,9 +1570,16 @@ function onVoteRequest(msg) {
     $('voteButtonArea').classList.add('hidden');
     $('rebuttalArea').classList.add('hidden');
     $('voteWaiting').classList.remove('hidden');
+    // Show withdraw button for the challenger
+    if (isChallenger) {
+      $('withdrawArea').classList.remove('hidden');
+    } else {
+      $('withdrawArea').classList.add('hidden');
+    }
   } else {
     $('voteButtonArea').classList.remove('hidden');
     $('rebuttalArea').classList.add('hidden');
+    $('withdrawArea').classList.add('hidden');
     $('voteWaiting').classList.add('hidden');
   }
 
@@ -1592,6 +1615,7 @@ function onVoteResult(msg) {
   $('voteOverlay').classList.add('hidden');
   $('rebuttalArea').classList.add('hidden');
   $('rebuttalDisplay').classList.add('hidden');
+  $('withdrawArea').classList.add('hidden');
   // Reset rebuttal input state
   const rebInput = $('rebuttalInput');
   rebInput.disabled = false;
@@ -1639,6 +1663,28 @@ function castVote(accept) {
   send({ type: 'vote', accept });
   $('voteButtonArea').classList.add('hidden');
   $('voteWaiting').classList.remove('hidden');
+}
+
+function withdrawChallenge() {
+  send({ type: 'withdraw_challenge' });
+}
+
+function onChallengeWithdrawn(msg) {
+  clearInterval(voteTimerInterval);
+  isVoteActive = false;
+  currentVotePlayerName = '';
+  $('voteOverlay').classList.add('hidden');
+  $('rebuttalArea').classList.add('hidden');
+  $('rebuttalDisplay').classList.add('hidden');
+  $('withdrawArea').classList.add('hidden');
+  // Reset rebuttal input state
+  const rebInput = $('rebuttalInput');
+  rebInput.disabled = false;
+  rebInput.placeholder = '反論を入力…';
+  const rebBtn = rebInput.parentElement.querySelector('.btn');
+  if (rebBtn) rebBtn.disabled = false;
+  addMessage(msg.message || '指摘が取り下げられました', 'info');
+  updateTurnDisplay();
 }
 
 function sendRebuttal() {
