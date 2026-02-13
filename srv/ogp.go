@@ -117,7 +117,7 @@ func (s *Server) HandleOGPImage(w http.ResponseWriter, r *http.Request) {
   <rect x="16" y="16" width="608" height="298" rx="16" fill="white" opacity="0.97"/>
   
   <!-- Title -->
-  <text x="320" y="60" text-anchor="middle" font-size="24" font-weight="900" fill="#1e1b4b" font-family="sans-serif">🎌 %s</text>
+  <text x="320" y="60" text-anchor="middle" font-size="24" font-weight="900" fill="#1e1b4b" font-family="sans-serif">%s</text>
   %s
 
   <!-- Divider -->
