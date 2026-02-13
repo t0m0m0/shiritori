@@ -1,3 +1,6 @@
+      /* ========== CONSTANTS ========== */
+      const DEFAULT_MAX_LIVES = 3;
+
       /* ========== STATE ========== */
       let ws = null;
       let myName = "";
@@ -17,7 +20,7 @@
       let wasRoomOwner = false; // was this player the room owner?
       let kanaRowNames = [];
       let currentLives = {};
-      let maxLives = 3;
+      let maxLives = DEFAULT_MAX_LIVES;
       let inviteRoomId = "";
       let lastShareURL = "";
 
@@ -329,7 +332,7 @@
             maxLen: parseInt($("maxLen").value) || 0,
             genre: $("genre").value,
             timeLimit: parseInt($("timeLimit").value) || 0,
-            maxLives: parseInt($("maxLives").value) || 3,
+            maxLives: parseInt($("maxLives").value) || DEFAULT_MAX_LIVES,
             allowedRows: allowedRows.length > 0 ? allowedRows : undefined,
             noDakuten: noDakuten || undefined,
             private: isPrivate || undefined,
@@ -361,7 +364,7 @@
           badges.push(`🎯 ${s.allowedRows.map(esc).join("・")}`);
         if (s.noDakuten) badges.push("🚫 濁音・半濁音禁止");
         if (s.maxLives || s.maxLives === 0)
-          badges.push(`❤️ ライフ${s.maxLives || 3}`);
+          badges.push(`❤️ ライフ${s.maxLives || DEFAULT_MAX_LIVES}`);
         const meta =
           room.playerCount !== undefined ? `👥 ${room.playerCount}人` : "";
         return [meta, ...badges]
@@ -400,7 +403,7 @@
         $("messageList").innerHTML = "";
         waitingPlayers = room.players || [];
         currentLives = {};
-        maxLives = currentSettings.maxLives || 3;
+        maxLives = currentSettings.maxLives || DEFAULT_MAX_LIVES;
         currentTurn = "";
         turnOrder = [];
         isVoteActive = false;
@@ -419,7 +422,7 @@
         currentSettings = msg.settings || {};
         roomOwner = msg.owner || "";
         currentLives = msg.lives || {};
-        maxLives = msg.maxLives || currentSettings.maxLives || 3;
+        maxLives = msg.maxLives || currentSettings.maxLives || DEFAULT_MAX_LIVES;
         showView("game");
         $("gameRoomTitle").textContent = currentSettings.name || "ルーム";
         renderRules();
@@ -510,7 +513,7 @@
           badges.push(`🎯 ${s.allowedRows.map(esc).join("・")}`);
         if (s.noDakuten) badges.push("🚫 濁音・半濁音禁止");
         if (s.maxLives || s.maxLives === 0)
-          badges.push(`❤️ ライフ${s.maxLives || 3}`);
+          badges.push(`❤️ ライフ${s.maxLives || DEFAULT_MAX_LIVES}`);
         return badges
           .map((b) => `<span class="rule-badge">${b}</span>`)
           .join("");
@@ -1014,7 +1017,7 @@
         $("goGenre").value = s.genre || "";
         // Set select values
         $("goTimeLimit").value = String(s.timeLimit || 0);
-        $("goMaxLives").value = String(s.maxLives || 3);
+        $("goMaxLives").value = String(s.maxLives || DEFAULT_MAX_LIVES);
         $("goNoDakuten").checked = !!s.noDakuten;
 
         // Render kana row checkboxes for game-over settings
@@ -1066,7 +1069,7 @@
           maxLen: parseInt($("goMaxLen").value) || 0,
           genre: $("goGenre").value,
           timeLimit: parseInt($("goTimeLimit").value) || 0,
-          maxLives: parseInt($("goMaxLives").value) || 3,
+          maxLives: parseInt($("goMaxLives").value) || DEFAULT_MAX_LIVES,
           allowedRows: goRows.length > 0 ? goRows : undefined,
           noDakuten: $("goNoDakuten").checked || undefined,
           private: currentSettings.private || undefined,
@@ -1081,7 +1084,7 @@
           newS.maxLen !== (s.maxLen || 0) ||
           newS.genre !== (s.genre || "") ||
           newS.timeLimit !== (s.timeLimit || 0) ||
-          newS.maxLives !== (s.maxLives || 3) ||
+          newS.maxLives !== (s.maxLives || DEFAULT_MAX_LIVES) ||
           !!newS.noDakuten !== !!s.noDakuten ||
           JSON.stringify(newS.allowedRows || []) !== JSON.stringify(s.allowedRows || []);
         $("settingsChangedBadge").classList.toggle("visible", changed);
@@ -1104,7 +1107,7 @@
           newS.maxLen !== (s.maxLen || 0) ||
           newS.genre !== (s.genre || "") ||
           newS.timeLimit !== (s.timeLimit || 0) ||
-          newS.maxLives !== (s.maxLives || 3) ||
+          newS.maxLives !== (s.maxLives || DEFAULT_MAX_LIVES) ||
           !!newS.noDakuten !== !!s.noDakuten ||
           JSON.stringify(newS.allowedRows || []) !== JSON.stringify(s.allowedRows || []);
         if (changed) {

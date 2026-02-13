@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+const (
+	// defaultMaxLives is the default number of lives per player when not configured.
+	defaultMaxLives = 3
+	// voteTimeout is how long players have to vote before auto-resolution.
+	voteTimeout = 15 * time.Second
+)
+
 // GameEngine manages game state: word validation, turns, scores, and lives.
 type GameEngine struct {
 	mu          sync.Mutex
@@ -32,7 +39,7 @@ type PlayerState struct {
 func NewGameEngine(settings RoomSettings, turnOrder []string, resetTimer func()) *GameEngine {
 	maxLives := settings.MaxLives
 	if maxLives <= 0 {
-		maxLives = 3
+		maxLives = defaultMaxLives
 	}
 	players := make(map[string]*PlayerState, len(turnOrder))
 	for _, name := range turnOrder {
@@ -56,7 +63,7 @@ func (ge *GameEngine) AddPlayer(name string) {
 	defer ge.mu.Unlock()
 	maxLives := ge.Settings.MaxLives
 	if maxLives <= 0 {
-		maxLives = 3
+		maxLives = defaultMaxLives
 	}
 	ge.Players[name] = &PlayerState{Score: 0, Lives: maxLives}
 	ge.TurnOrder = append(ge.TurnOrder, name)
@@ -339,7 +346,7 @@ func (ge *GameEngine) GetPlayerLives(name string) int {
 func (ge *GameEngine) MaxLives() int {
 	maxLives := ge.Settings.MaxLives
 	if maxLives <= 0 {
-		maxLives = 3
+		maxLives = defaultMaxLives
 	}
 	return maxLives
 }

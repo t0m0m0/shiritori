@@ -493,7 +493,7 @@ func (s *Server) handleStartGame(room *Room) {
 	currentTurn := ""
 	var turnOrder []string
 	var lives map[string]int
-	maxLives := 3
+	maxLives := defaultMaxLives
 	if room.Engine != nil {
 		currentTurn = room.Engine.CurrentTurn()
 		_, _, turnOrder, _ = room.Engine.Snapshot()
@@ -558,7 +558,7 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 
 		// Start a 15-second vote timer
 		go func() {
-			time.Sleep(15 * time.Second)
+			time.Sleep(voteTimeout)
 			resolved, result := room.ForceResolveVote()
 			if resolved {
 				s.broadcastVoteResult(room, result)
@@ -709,7 +709,7 @@ func (s *Server) handleChallenge(room *Room, playerName string) {
 
 	// Start a 15-second vote timer
 	go func() {
-		time.Sleep(15 * time.Second)
+		time.Sleep(voteTimeout)
 		resolved, result := room.ForceResolveVote()
 		if resolved {
 			s.broadcastVoteResult(room, result)

@@ -551,7 +551,7 @@ func (r *Room) GetState() map[string]any {
 	state["lives"] = r.getLivesLocked()
 	maxLives := r.Settings.MaxLives
 	if maxLives <= 0 {
-		maxLives = 3
+		maxLives = defaultMaxLives
 	}
 	state["maxLives"] = maxLives
 	return state
