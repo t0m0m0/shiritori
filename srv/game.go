@@ -442,9 +442,10 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		}
 	}
 
-	// Check not already used
+	// Check not already used — penalty (lose a life)
 	if r.UsedWords[hiragana] {
-		return ValidateRejected, "この言葉はすでに使われています"
+		r.applyPenaltyLocked(playerName)
+		return ValidatePenalty, "この言葉はすでに使われています"
 	}
 
 	// --- Penalty checks: word NOT accepted, but player loses a life ---
