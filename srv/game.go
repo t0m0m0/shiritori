@@ -615,10 +615,16 @@ func (r *Room) CastVote(playerName string, accept bool) (resolved bool, result V
 		return false, VoteResolution{}
 	}
 
+	// The challenged player cannot vote in challenge votes (they can send a rebuttal instead)
+	if r.pendingVote.Type == "challenge" && r.pendingVote.Player == playerName {
+		return false, VoteResolution{}
+	}
+
 	r.pendingVote.Votes[playerName] = accept
 
-	// Check if all players have voted
-	if len(r.pendingVote.Votes) < len(r.Players) {
+	// Check if all eligible voters have voted
+	eligibleVoters := r.countEligibleVotersLocked()
+	if len(r.pendingVote.Votes) < eligibleVoters {
 		return false, VoteResolution{}
 	}
 
@@ -637,6 +643,19 @@ func (r *Room) ForceResolveVote() (resolved bool, result VoteResolution) {
 	return r.resolveVoteLocked()
 }
 
+// countEligibleVotersLocked returns the number of players who can vote.
+// For challenge votes, the challenged player is excluded. Caller must hold r.mu.
+func (r *Room) countEligibleVotersLocked() int {
+	total := len(r.Players)
+	if r.pendingVote != nil && r.pendingVote.Type == "challenge" {
+		// Exclude the challenged player from voting
+		if _, ok := r.Players[r.pendingVote.Player]; ok {
+			total--
+		}
+	}
+	return total
+}
+
 func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 	r.pendingVote.Resolved = true
 	acceptCount := 0
@@ -648,8 +667,9 @@ func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 			rejectCount++
 		}
 	}
-	// Non-voters count as reject
-	rejectCount += len(r.Players) - len(r.pendingVote.Votes)
+	// Non-voters count as reject (only among eligible voters)
+	eligibleVoters := r.countEligibleVotersLocked()
+	rejectCount += eligibleVoters - len(r.pendingVote.Votes)
 
 	accepted := acceptCount > rejectCount
 	result = VoteResolution{
@@ -759,7 +779,7 @@ func (r *Room) StartChallengeVote(challengerName string) (VoteInfo, error) {
 		Challenger: challengerName,
 		Reason:     r.pendingVote.Reason,
 		VoteCount:  len(r.pendingVote.Votes),
-		Total:      len(r.Players),
+		Total:      r.countEligibleVotersLocked(),
 	}
 	return info, nil
 }

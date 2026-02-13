@@ -26,8 +26,9 @@ type WSMessage struct {
 	RoomID   string        `json:"roomId,omitempty"`
 	Word     string        `json:"word,omitempty"`
 	Settings *RoomSettings `json:"settings,omitempty"`
-	Accept   *bool         `json:"accept,omitempty"` // for vote messages
-	Reason   string        `json:"reason,omitempty"` // for challenge
+	Accept   *bool         `json:"accept,omitempty"`    // for vote messages
+	Reason   string        `json:"reason,omitempty"`    // for challenge
+	Rebuttal string        `json:"rebuttal,omitempty"` // for challenged player's rebuttal
 
 	// Response fields
 	Success bool       `json:"success,omitempty"`
@@ -250,6 +251,17 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			s.handleChallenge(currentRoom, playerName)
 
+		case "rebuttal":
+			if currentRoom == nil || playerName == "" {
+				sendErr("ルームに参加していません")
+				continue
+			}
+			if msg.Rebuttal == "" {
+				sendErr("反論メッセージが必要です")
+				continue
+			}
+			s.handleRebuttal(currentRoom, playerName, msg.Rebuttal)
+
 		default:
 			sendErr(fmt.Sprintf("unknown message type: %s", msg.Type))
 		}
@@ -392,7 +404,6 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 		// Start vote — broadcast to all players
 		room.mu.Lock()
 		voteCount := 0
-		totalPlayers := len(room.Players)
 		voteReason := ""
 		voteType := ""
 		if room.pendingVote != nil {
@@ -400,6 +411,7 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 			voteReason = room.pendingVote.Reason
 			voteType = room.pendingVote.Type
 		}
+		eligibleVoters := room.countEligibleVotersLocked()
 		room.mu.Unlock()
 
 		room.Broadcast(mustMarshal(map[string]any{
@@ -411,7 +423,7 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 			"message":      msg,
 			"reason":       voteReason,
 			"voteCount":    voteCount,
-			"totalPlayers": totalPlayers,
+			"totalPlayers": eligibleVoters,
 		}))
 
 		// Start a 15-second vote timer
@@ -478,11 +490,11 @@ func (s *Server) handleVote(room *Room, playerName string, accept bool) {
 
 	// Broadcast vote progress
 	room.mu.Lock()
-	var voteCount, totalPlayers int
+	var voteCount int
 	if room.pendingVote != nil {
 		voteCount = len(room.pendingVote.Votes)
 	}
-	totalPlayers = len(room.Players)
+	eligibleVoters := room.countEligibleVotersLocked()
 	room.mu.Unlock()
 
 	if !resolved {
@@ -490,12 +502,33 @@ func (s *Server) handleVote(room *Room, playerName string, accept bool) {
 		room.Broadcast(mustMarshal(map[string]any{
 			"type":         "vote_update",
 			"voteCount":    voteCount,
-			"totalPlayers": totalPlayers,
+			"totalPlayers": eligibleVoters,
 		}))
 		return
 	}
 
 	s.broadcastVoteResult(room, result)
+}
+
+func (s *Server) handleRebuttal(room *Room, playerName, rebuttal string) {
+	room.mu.Lock()
+	// Only the challenged player (the word submitter) can send a rebuttal
+	if room.pendingVote == nil || room.pendingVote.Resolved || room.pendingVote.Type != "challenge" {
+		room.mu.Unlock()
+		return
+	}
+	if room.pendingVote.Player != playerName {
+		room.mu.Unlock()
+		return
+	}
+	room.mu.Unlock()
+
+	// Broadcast the rebuttal to all players
+	room.Broadcast(mustMarshal(map[string]any{
+		"type":     "rebuttal",
+		"player":   playerName,
+		"rebuttal": rebuttal,
+	}))
 }
 
 func (s *Server) handleChallenge(room *Room, playerName string) {

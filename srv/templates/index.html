@@ -462,6 +462,34 @@ input,select{font-family:inherit;font-size:1rem}
 .vote-waiting {
   color: var(--text2); font-size: .95rem; padding: .5rem 0;
 }
+/* rebuttal */
+.rebuttal-area {
+  margin-bottom: 1rem;
+}
+.rebuttal-label {
+  font-size: .95rem; color: var(--primary); font-weight: 600; margin-bottom: .4rem;
+}
+.rebuttal-input-row {
+  display: flex; gap: .5rem; align-items: center;
+}
+.rebuttal-input {
+  flex: 1; padding: .6rem .8rem; border-radius: .5rem; border: 2px solid var(--border);
+  font-size: 1rem; background: var(--bg); color: var(--text);
+}
+.rebuttal-input:focus {
+  border-color: var(--primary); outline: none;
+}
+.rebuttal-hint {
+  font-size: .8rem; color: var(--text2); margin-top: .3rem;
+}
+.rebuttal-display {
+  background: var(--surface); border-left: 3px solid var(--primary);
+  padding: .6rem .8rem; margin: .75rem 0; border-radius: .25rem;
+  font-size: .95rem; color: var(--text); text-align: left;
+}
+.rebuttal-display .rebuttal-sender {
+  font-weight: 700; color: var(--primary); margin-right: .3rem;
+}
 /* lobby button disabled tooltip */
 .lobby-btn-wrap {
   position: relative;
@@ -697,6 +725,15 @@ input,select{font-family:inherit;font-size:1rem}
       <button class="btn btn-accept" onclick="castVote(true)">✅ 認める</button>
       <button class="btn btn-reject" onclick="castVote(false)">❌ 却下</button>
     </div>
+    <div id="rebuttalArea" class="rebuttal-area hidden">
+      <p class="rebuttal-label">💬 反論メッセージを送れます：</p>
+      <div class="rebuttal-input-row">
+        <input type="text" id="rebuttalInput" class="rebuttal-input" placeholder="反論を入力…" maxlength="100">
+        <button class="btn btn-primary" onclick="sendRebuttal()">送信</button>
+      </div>
+      <p class="rebuttal-hint">他のプレイヤーに表示されます（投票には参加できません）</p>
+    </div>
+    <div id="rebuttalDisplay" class="rebuttal-display hidden"></div>
     <div id="voteWaiting" class="vote-waiting hidden">投票済み。他のプレイヤーの投票を待っています…</div>
     <div class="vote-progress">
       <span id="voteProgressText">0 / 0 投票済み</span>
@@ -859,6 +896,7 @@ function handleMessage(msg) {
     case 'vote_request': onVoteRequest(msg); break;
     case 'vote_update': onVoteUpdate(msg); break;
     case 'vote_result': onVoteResult(msg); break;
+    case 'rebuttal': onRebuttal(msg); break;
     case 'penalty': onPenalty(msg); break;
     case 'room_state': onJoined(msg); break;
     case 'error': addMessage(msg.message, 'error'); break;
@@ -1473,9 +1511,15 @@ function showScorePopup(player) {
 }
 
 /* ========== VOTE ========== */
+let currentVotePlayerName = ''; // the challenged player in challenge votes
+
 function onVoteRequest(msg) {
   const isGenre = msg.voteType === 'genre';
   const isChallenge = msg.voteType === 'challenge';
+  currentVotePlayerName = isChallenge ? msg.player : '';
+
+  // Determine if this user is the challenged player
+  const isChallengedPlayer = isChallenge && msg.player === myName;
   if (isChallenge) {
     hasVoted = (msg.challenger === myName); // challenger auto-voted reject
   } else {
@@ -1495,11 +1539,24 @@ function onVoteRequest(msg) {
   $('voteOverlay').classList.remove('hidden');
   updateTurnDisplay();
 
-  if (hasVoted) {
+  // Reset rebuttal display
+  $('rebuttalDisplay').classList.add('hidden');
+  $('rebuttalDisplay').innerHTML = '';
+
+  if (isChallengedPlayer) {
+    // Challenged player: show rebuttal input instead of vote buttons
     $('voteButtonArea').classList.add('hidden');
+    $('voteWaiting').classList.add('hidden');
+    $('rebuttalArea').classList.remove('hidden');
+    $('rebuttalInput').value = '';
+    setTimeout(() => $('rebuttalInput').focus(), 100);
+  } else if (hasVoted) {
+    $('voteButtonArea').classList.add('hidden');
+    $('rebuttalArea').classList.add('hidden');
     $('voteWaiting').classList.remove('hidden');
   } else {
     $('voteButtonArea').classList.remove('hidden');
+    $('rebuttalArea').classList.add('hidden');
     $('voteWaiting').classList.add('hidden');
   }
 
@@ -1531,7 +1588,16 @@ function updateVoteProgress(count, total) {
 function onVoteResult(msg) {
   clearInterval(voteTimerInterval);
   isVoteActive = false;
+  currentVotePlayerName = '';
   $('voteOverlay').classList.add('hidden');
+  $('rebuttalArea').classList.add('hidden');
+  $('rebuttalDisplay').classList.add('hidden');
+  // Reset rebuttal input state
+  const rebInput = $('rebuttalInput');
+  rebInput.disabled = false;
+  rebInput.placeholder = '反論を入力…';
+  const rebBtn = rebInput.parentElement.querySelector('.btn');
+  if (rebBtn) rebBtn.disabled = false;
   if (msg.accepted) {
     addMessage(msg.message || `投票により「${msg.word}」が承認されました`, 'success');
   } else {
@@ -1573,6 +1639,27 @@ function castVote(accept) {
   send({ type: 'vote', accept });
   $('voteButtonArea').classList.add('hidden');
   $('voteWaiting').classList.remove('hidden');
+}
+
+function sendRebuttal() {
+  const input = $('rebuttalInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  send({ type: 'rebuttal', rebuttal: text });
+  input.value = '';
+  input.placeholder = '送信済み ✓';
+  input.disabled = true;
+  input.parentElement.querySelector('.btn').disabled = true;
+}
+
+function onRebuttal(msg) {
+  const display = $('rebuttalDisplay');
+  const div = document.createElement('div');
+  div.style.marginBottom = '.3rem';
+  div.innerHTML = `<span class="rebuttal-sender">${esc(msg.player)}:</span> ${esc(msg.rebuttal)}`;
+  display.appendChild(div);
+  display.classList.remove('hidden');
+  addMessage(`💬 ${msg.player}の反論: ${msg.rebuttal}`, 'info');
 }
 
 function onPenalty(msg) {
@@ -1640,6 +1727,9 @@ function requestChallenge() {
 /* ========== KEYBOARD ========== */
 $('answerInput')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
+});
+$('rebuttalInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); sendRebuttal(); }
 });
 
 document.addEventListener('keydown', e => {
