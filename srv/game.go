@@ -55,8 +55,7 @@ type Room struct {
 	TurnOrder []string // player names in order
 	TurnIndex int      // index into TurnOrder for current turn
 
-	timerCancel chan struct{}
-	timerLeft   int
+	Timer *TimerManager
 
 	// Callback for saving game result on game over (set by Server)
 	OnGameOver func(room *Room, result map[string]any) map[string]any
@@ -307,13 +306,8 @@ func (r *Room) StartGame() error {
 		return fmt.Errorf("need at least 1 player")
 	}
 
-	if r.timerCancel != nil {
-		select {
-		case <-r.timerCancel:
-		default:
-			close(r.timerCancel)
-		}
-		r.timerCancel = nil
+	if r.Timer != nil {
+		r.Timer.Stop()
 	}
 
 	r.Status = "playing"
@@ -347,10 +341,8 @@ func (r *Room) StartGame() error {
 	r.pendingVote = nil
 
 	// Start timer if applicable
-	if r.Settings.TimeLimit > 0 {
-		r.timerLeft = r.Settings.TimeLimit
-		r.timerCancel = make(chan struct{})
-		go r.runTimer()
+	if r.Settings.TimeLimit > 0 && r.Timer != nil {
+		r.Timer.Start(r.Settings.TimeLimit)
 	}
 
 	return nil
@@ -371,59 +363,10 @@ func (r *Room) UpdateSettings(s RoomSettings) error {
 	return nil
 }
 
-// runTimer runs the countdown timer in a goroutine.
-func (r *Room) runTimer() {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.timerCancel:
-			return
-		case <-ticker.C:
-			r.mu.Lock()
-			if r.Status != "playing" {
-				r.mu.Unlock()
-				return
-			}
-			r.timerLeft--
-			left := r.timerLeft
-			if left <= 0 {
-				r.Status = "finished"
-				loser := ""
-				if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {
-					loser = r.TurnOrder[r.TurnIndex]
-				}
-				gameOverMsg := map[string]any{
-					"type":    "game_over",
-					"reason":  "タイムアップ",
-					"loser":   loser,
-					"scores":  r.getScoresLocked(),
-					"history": r.History,
-					"lives":   r.getLivesLocked(),
-				}
-				if r.OnGameOver != nil {
-					gameOverMsg = r.OnGameOver(r, gameOverMsg)
-				}
-				r.broadcastLocked(mustMarshal(gameOverMsg))
-				r.timerCancel = nil
-				r.mu.Unlock()
-				return
-			}
-			msg := mustMarshal(map[string]any{
-				"type":     "timer",
-				"timeLeft": left,
-			})
-			r.broadcastLocked(msg)
-			r.mu.Unlock()
-		}
-	}
-}
-
 // resetTimer resets the countdown to the room's time limit.
 func (r *Room) resetTimer() {
-	if r.Settings.TimeLimit > 0 {
-		r.timerLeft = r.Settings.TimeLimit
+	if r.Timer != nil {
+		r.Timer.Reset()
 	}
 }
 
@@ -858,16 +801,8 @@ func formatAllowedRows(rows []string) string {
 
 // StopTimer cancels the room's timer.
 func (r *Room) StopTimer() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.timerCancel != nil {
-		select {
-		case <-r.timerCancel:
-			// already closed
-		default:
-			close(r.timerCancel)
-		}
-		r.timerCancel = nil
+	if r.Timer != nil {
+		r.Timer.Stop()
 	}
 }
 
@@ -894,8 +829,8 @@ func (r *Room) GetState() map[string]any {
 		"status":      r.Status,
 	}
 
-	if r.Settings.TimeLimit > 0 {
-		state["timeLeft"] = r.timerLeft
+	if r.Settings.TimeLimit > 0 && r.Timer != nil {
+		state["timeLeft"] = r.Timer.TimeLeft()
 	}
 	state["turnOrder"] = r.TurnOrder
 	if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {

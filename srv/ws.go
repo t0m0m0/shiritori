@@ -340,6 +340,41 @@ func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *R
 	room.Owner = name
 	room.OnGameOver = s.makeGameOverCallback()
 
+	// Set up timer with callbacks
+	room.Timer = NewTimerManager(
+		func(timeLeft int) {
+			room.Broadcast(mustMarshal(map[string]any{
+				"type":     "timer",
+				"timeLeft": timeLeft,
+			}))
+		},
+		func() {
+			room.mu.Lock()
+			if room.Status != "playing" {
+				room.mu.Unlock()
+				return
+			}
+			room.Status = "finished"
+			loser := ""
+			if len(room.TurnOrder) > 0 && room.TurnIndex < len(room.TurnOrder) {
+				loser = room.TurnOrder[room.TurnIndex]
+			}
+			gameOverMsg := map[string]any{
+				"type":    "game_over",
+				"reason":  "タイムアップ",
+				"loser":   loser,
+				"scores":  room.getScoresLocked(),
+				"history": room.History,
+				"lives":   room.getLivesLocked(),
+			}
+			if room.OnGameOver != nil {
+				gameOverMsg = room.OnGameOver(room, gameOverMsg)
+			}
+			room.broadcastLocked(mustMarshal(gameOverMsg))
+			room.mu.Unlock()
+		},
+	)
+
 	player := &Player{
 		Name: name,
 		Conn: conn,
