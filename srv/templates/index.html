@@ -462,6 +462,45 @@ input,select{font-family:inherit;font-size:1rem}
 .vote-waiting {
   color: var(--text2); font-size: .95rem; padding: .5rem 0;
 }
+/* lobby button disabled tooltip */
+.lobby-btn-wrap {
+  position: relative;
+  display: inline-block;
+}
+.lobby-btn-wrap .btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.lobby-btn-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  font-size: .75rem;
+  padding: .3rem .6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.lobby-btn-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+}
+.lobby-btn-wrap:hover .lobby-btn-tooltip {
+  display: block;
+}
+.lobby-btn-wrap:not(:has(.btn:disabled)) .lobby-btn-tooltip {
+  display: none !important;
+}
 </style>
 </head>
 <body>
@@ -543,7 +582,10 @@ input,select{font-family:inherit;font-size:1rem}
           🔒 プライベートルーム（ロビーに表示しない）
         </label>
       </div>
-      <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
+      <div class="lobby-btn-wrap" data-lobby-btn style="display:block">
+        <button class="btn btn-primary btn-block" onclick="createRoom()" disabled>ルームを作成</button>
+        <span class="lobby-btn-tooltip">ユーザー名を入力してください</span>
+      </div>
     </div>
   </div>
 
@@ -554,7 +596,10 @@ input,select{font-family:inherit;font-size:1rem}
       <div class="invite-room-host" id="inviteCardHost"></div>
     </div>
     <div class="invite-actions">
-      <button class="btn btn-primary" onclick="joinInviteRoom()">参加する</button>
+      <div class="lobby-btn-wrap" data-lobby-btn>
+        <button class="btn btn-primary" onclick="joinInviteRoom()" disabled>参加する</button>
+        <span class="lobby-btn-tooltip">ユーザー名を入力してください</span>
+      </div>
       <button class="btn btn-outline" onclick="clearInvite()">無視</button>
     </div>
   </div>
@@ -882,8 +927,11 @@ function renderRoomList(rooms) {
         </div>
       </div>
       <div class="room-actions">
-        <button class="btn btn-primary" onclick="showInviteRoomPreview('${esc(r.id)}')"
-          ${r.status === 'playing' ? 'disabled style="opacity:.5"' : ''}>参加</button>
+        <div class="lobby-btn-wrap" data-lobby-btn>
+          <button class="btn btn-primary" onclick="showInviteRoomPreview('${esc(r.id)}')"
+            ${r.status === 'playing' ? 'data-playing disabled' : (!$('playerName').value.trim() ? 'disabled' : '')}>参加</button>
+          <span class="lobby-btn-tooltip">${r.status === 'playing' ? 'プレイ中です' : 'ユーザー名を入力してください'}</span>
+        </div>
       </div>`;
     list.appendChild(li);
   });
@@ -1606,6 +1654,22 @@ window.addEventListener('popstate', handleInviteFromURL);
 setInterval(() => {
   if (!$('lobby').classList.contains('hidden')) refreshRooms();
 }, 5000);
+
+// Toggle lobby buttons based on playerName input
+function updateLobbyButtons() {
+  const hasName = $('playerName').value.trim().length > 0;
+  document.querySelectorAll('[data-lobby-btn] .btn').forEach(btn => {
+    // Don't touch buttons disabled for other reasons (e.g. playing rooms)
+    if (btn.hasAttribute('data-playing')) return;
+    if (hasName) {
+      btn.removeAttribute('disabled');
+    } else {
+      btn.setAttribute('disabled', '');
+    }
+  });
+}
+$('playerName').addEventListener('input', updateLobbyButtons);
+updateLobbyButtons();
 
 </script>
 </body>
