@@ -573,16 +573,6 @@ input,select{font-family:inherit;font-size:1rem}
     </div>
   </div>
 
-  <div id="inviteRoomInfo" class="card slide-up hidden" style="animation-delay:.08s">
-    <h2>ルーム情報</h2>
-    <div class="invite-room-title" id="inviteRoomTitle"></div>
-    <div class="invite-room-rules" id="inviteRoomRules"></div>
-    <div class="invite-room-host" id="inviteRoomHost"></div>
-    <div class="invite-room-players">
-      <h3>👥 参加者</h3>
-      <ul id="inviteRoomPlayers" class="waiting-player-list"></ul>
-    </div>
-  </div>
 
   <div id="lobbyRoomsCard" class="card slide-up" style="animation-delay:.1s">
     <h2>ルーム一覧 <button class="btn btn-outline" style="margin-left:auto;padding:.3rem .8rem;font-size:.8rem" onclick="refreshRooms()">更新</button></h2>
@@ -775,11 +765,6 @@ function setInviteRoom(roomId) {
 }
 
 function clearInviteRoomInfo() {
-  $('inviteRoomInfo').classList.add('hidden');
-  $('inviteRoomTitle').textContent = '';
-  $('inviteRoomRules').innerHTML = '';
-  $('inviteRoomHost').textContent = '';
-  $('inviteRoomPlayers').innerHTML = '';
   $('inviteCardTitle').textContent = '招待ルーム';
   $('inviteCardRules').innerHTML = '<span class="rule-badge">読み込み中…</span>';
   $('inviteCardHost').textContent = '';
@@ -799,7 +784,6 @@ function joinInviteRoom() {
   if (!inviteRoomId) return;
   joinRoom(inviteRoomId);
   $('inviteCard').classList.add('hidden');
-  $('inviteRoomInfo').classList.add('hidden');
   document.body.classList.remove('invite-lobby');
 }
 
@@ -997,25 +981,9 @@ function renderRoomInfo(room) {
 
 function renderInviteRoomInfo(room) {
   if (!room) return;
-  $('inviteRoomInfo').classList.remove('hidden');
-  $('inviteRoomTitle').textContent = room.name || 'ルーム';
-  $('inviteRoomRules').innerHTML = buildRoomBadges(room);
-  $('inviteRoomHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
   $('inviteCardTitle').textContent = room.name || '招待ルーム';
   $('inviteCardRules').innerHTML = buildInviteBadges(room);
   $('inviteCardHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
-  const players = room.players || [];
-  const list = $('inviteRoomPlayers');
-  list.innerHTML = '';
-  if (!players.length) {
-    list.innerHTML = '<li class="waiting-empty">参加者なし</li>';
-  } else {
-    players.forEach(name => {
-      const li = document.createElement('li');
-      li.innerHTML = esc(name) + (name === room.owner ? ' <span class="owner-badge">ホスト</span>' : '');
-      list.appendChild(li);
-    });
-  }
 }
 
 function prepareWaitingRoom(room) {
@@ -1454,7 +1422,6 @@ function showInviteRoomPreview(roomId) {
   url.searchParams.set('room', roomId);
   window.history.replaceState({}, '', url.toString());
   loadInviteRoomInfo(roomId, true);
-  $('inviteRoomInfo').classList.remove('hidden');
 }
 
 /* ========== MESSAGES ========== */
