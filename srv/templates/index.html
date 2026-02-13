@@ -663,11 +663,9 @@ input,select{font-family:inherit;font-size:1rem}
   margin-bottom: 4px;
 }
 .theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   width: 100%;
-  padding: 8px 8px;
+  padding: 7px 12px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -675,6 +673,8 @@ input,select{font-family:inherit;font-size:1rem}
   transition: background .15s;
   font-size: .85rem;
   color: #333;
+  text-align: left;
+  white-space: nowrap;
 }
 .theme-btn:hover {
   background: #f3f3f3;
@@ -682,19 +682,6 @@ input,select{font-family:inherit;font-size:1rem}
 .theme-btn.active {
   background: #eef0ff;
   font-weight: 600;
-}
-.theme-swatch {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.theme-swatch span {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  display: block;
-}
-.theme-label {
-  white-space: nowrap;
 }
 </style>
 </head>
@@ -709,38 +696,10 @@ input,select{font-family:inherit;font-size:1rem}
   <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">🎨</button>
   <div class="theme-panel" id="themePanel">
     <div class="theme-panel-title">テーマ</div>
-    <button class="theme-btn" data-theme="default">
-      <span class="theme-swatch">
-        <span style="background:#6366f1"></span>
-        <span style="background:#818cf8"></span>
-        <span style="background:#f59e0b"></span>
-      </span>
-      <span class="theme-label">デフォルト</span>
-    </button>
-    <button class="theme-btn" data-theme="wamo">
-      <span class="theme-swatch">
-        <span style="background:#1a1a2e"></span>
-        <span style="background:#c53d43"></span>
-        <span style="background:#f5f0e8"></span>
-      </span>
-      <span class="theme-label">和モダン</span>
-    </button>
-    <button class="theme-btn" data-theme="neon">
-      <span class="theme-swatch">
-        <span style="background:#0a0a1a"></span>
-        <span style="background:#ff6ec7"></span>
-        <span style="background:#00f5d4"></span>
-      </span>
-      <span class="theme-label">ネオン</span>
-    </button>
-    <button class="theme-btn" data-theme="typo">
-      <span class="theme-swatch">
-        <span style="background:#111"></span>
-        <span style="background:#fafafa;border:1px solid #ccc"></span>
-        <span style="background:#e00"></span>
-      </span>
-      <span class="theme-label">活版</span>
-    </button>
+    <button class="theme-btn" data-theme="default">デフォルト</button>
+    <button class="theme-btn" data-theme="wamo">和モダン</button>
+    <button class="theme-btn" data-theme="neon">ネオン</button>
+    <button class="theme-btn" data-theme="typo">活版</button>
   </div>
 </div>
 
