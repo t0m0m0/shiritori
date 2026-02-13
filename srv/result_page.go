@@ -100,7 +100,7 @@ body{
 </head>
 <body>
 <div class="header">
-  <h1>🎌 しりとり</h1>
+  <h1>しりとり</h1>
 </div>
 <div class="container">
   <div class="card">

@@ -1,0 +1,800 @@
+/*
+ * ═══════════════════════════════════════════════════════════
+ *  和モダン・墨流し (Wamo) — Japanese Modern / Ink Flow Theme
+ * ═══════════════════════════════════════════════════════════
+ *  Colors: Ink #1a1a2e / Washi #f5f0e8 / Vermillion #c53d43
+ *          Gold #b8860b / Light ink #888
+ */
+
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Zen+Antique&family=Shippori+Mincho:wght@400;500;600;700&family=Zen+Maru+Gothic:wght@300;400;500;700&display=swap');
+
+/* ══════════════════════════════════════════════════════════════
+   §1  CSS Custom Property Overrides
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] {
+  /* Primary — Vermillion (朱) */
+  --primary: #c53d43;
+  --primary-light: #d4616a;
+  --primary-dark: #a3232a;
+
+  /* Accent — Gold (金) */
+  --accent: #b8860b;
+  --accent-light: #d4a017;
+
+  /* Semantic */
+  --danger: #c53d43;
+  --success: #2d8b57;
+
+  /* Surfaces — Washi paper tones */
+  --bg: #f5f0e8;
+  --surface: #faf6ef;
+  --surface2: #eee8db;
+
+  /* Text — Ink tones */
+  --text: #1a1a2e;
+  --text2: #5c5c6e;
+  --text3: #999;
+
+  /* Shape */
+  --radius: 2px;
+  --shadow: 0 2px 12px rgba(26, 26, 46, .08);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §2  Typography
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] body {
+  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+}
+
+[data-theme="wamo"] button {
+  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+}
+
+[data-theme="wamo"] input,
+[data-theme="wamo"] select {
+  font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §3  Body — Washi Paper Texture (CSS-only)
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] body {
+  background-color: #f5f0e8;
+  background-image:
+    /* Fine noise / fiber grain */
+    repeating-linear-gradient(
+      135deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(139, 119, 90, .04) 2px,
+      rgba(139, 119, 90, .04) 3px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0px,
+      transparent 4px,
+      rgba(139, 119, 90, .025) 4px,
+      rgba(139, 119, 90, .025) 5px
+    ),
+    /* Larger paper fibers */
+    repeating-linear-gradient(
+      97deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(160, 140, 110, .03) 8px,
+      rgba(160, 140, 110, .03) 9px
+    ),
+    /* Subtle warm variation */
+    radial-gradient(
+      ellipse at 30% 20%,
+      rgba(210, 190, 160, .15) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse at 80% 80%,
+      rgba(200, 180, 150, .10) 0%,
+      transparent 50%
+    );
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §4  Header — Ink Black, Static, Vermillion Accent
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .header {
+  background: #1a1a2e;
+  background-size: auto;
+  animation: none;
+  border-top: 3px solid #c53d43;
+  color: #f5f0e8;
+}
+
+/* Remove the rounded bottom pseudo-element */
+[data-theme="wamo"] .header::after {
+  display: none;
+}
+
+[data-theme="wamo"] .header h1 {
+  font-family: 'Zen Antique', serif;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .4);
+  color: #f5f0e8;
+}
+
+[data-theme="wamo"] .header a {
+  color: #f5f0e8;
+}
+
+[data-theme="wamo"] .header p {
+  font-family: 'Shippori Mincho', serif;
+  opacity: .7;
+  letter-spacing: .08em;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §5  Cards — Washi Surface, Vermillion Left Border
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .card {
+  background: var(--surface);
+  border-radius: 2px;
+  border-left: 3px solid #c53d43;
+  box-shadow: 0 1px 8px rgba(26, 26, 46, .06);
+}
+
+[data-theme="wamo"] .card h2 {
+  font-family: 'Shippori Mincho', serif;
+  color: #1a1a2e;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+[data-theme="wamo"] .card h2::before {
+  background: #c53d43;
+  border-radius: 0;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §6  Buttons
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .btn {
+  border-radius: 2px;
+  font-family: 'Zen Maru Gothic', sans-serif;
+  letter-spacing: .03em;
+}
+
+[data-theme="wamo"] .btn-primary {
+  background: #c53d43;
+  color: #fff;
+}
+
+[data-theme="wamo"] .btn-primary:hover {
+  background: #a3232a;
+  box-shadow: 0 4px 16px rgba(197, 61, 67, .3);
+}
+
+[data-theme="wamo"] .btn-accent {
+  background: #b8860b;
+  color: #fff;
+}
+
+[data-theme="wamo"] .btn-accent:hover {
+  background: #96690a;
+}
+
+[data-theme="wamo"] .btn-outline {
+  background: transparent;
+  color: #1a1a2e;
+  border: 2px solid #1a1a2e;
+}
+
+[data-theme="wamo"] .btn-outline:hover {
+  background: #1a1a2e;
+  color: #f5f0e8;
+}
+
+[data-theme="wamo"] .btn-danger {
+  background: #c53d43;
+  color: #fff;
+}
+
+[data-theme="wamo"] .btn-danger:hover {
+  background: #a3232a;
+}
+
+[data-theme="wamo"] .btn-lg {
+  border-radius: 2px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §7  Current Word Area — Ensō Circle Effect
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .current-word-area {
+  background:
+    /* Ensō — faint brush circle */
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 42%,
+      rgba(26, 26, 46, .06) 43%,
+      rgba(26, 26, 46, .06) 46%,
+      transparent 47%
+    ),
+    /* Washi base */
+    linear-gradient(180deg, #f5f0e8, #eee8db);
+  border-radius: 2px;
+  border-bottom: 2px solid #c53d43;
+}
+
+[data-theme="wamo"] .current-word {
+  font-family: 'Zen Antique', serif;
+  font-weight: 400;
+  color: #1a1a2e;
+  letter-spacing: .15em;
+}
+
+[data-theme="wamo"] .current-word-label {
+  font-family: 'Shippori Mincho', serif;
+  color: #5c5c6e;
+  letter-spacing: .1em;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §8  Form Inputs
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .form-group input,
+[data-theme="wamo"] .form-group select {
+  border: 1px solid #1a1a2e;
+  border-radius: 2px;
+  background: var(--surface);
+  color: #1a1a2e;
+}
+
+[data-theme="wamo"] .form-group input:focus,
+[data-theme="wamo"] .form-group select:focus {
+  border-color: #c53d43;
+  box-shadow: 0 0 0 2px rgba(197, 61, 67, .15);
+}
+
+[data-theme="wamo"] .form-group label {
+  font-family: 'Shippori Mincho', serif;
+  color: #5c5c6e;
+  letter-spacing: .03em;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §9  Answer Area
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .answer-area input {
+  border: 1px solid #1a1a2e;
+  border-radius: 2px;
+  background: var(--surface);
+  font-family: 'Zen Antique', serif;
+  font-size: 1.3rem;
+  letter-spacing: .08em;
+}
+
+[data-theme="wamo"] .answer-area input:focus {
+  border-color: #c53d43;
+  box-shadow: 0 0 0 2px rgba(197, 61, 67, .15);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §10  Kana Row Chips
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .kana-row-chip {
+  border: 1px solid #1a1a2e;
+  border-radius: 2px;
+  background: var(--surface);
+  color: #1a1a2e;
+  font-family: 'Zen Maru Gothic', sans-serif;
+}
+
+[data-theme="wamo"] .kana-row-chip:hover {
+  background: #eee8db;
+}
+
+[data-theme="wamo"] .kana-row-chip.selected {
+  background: #c53d43;
+  color: #fff;
+  border-color: #a3232a;
+}
+
+[data-theme="wamo"] .kana-row-select-all {
+  color: #c53d43;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §11  Room Items
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .room-item {
+  background: var(--surface);
+  border-radius: 2px;
+  border-left: 3px solid #c53d43;
+}
+
+[data-theme="wamo"] .room-item:hover {
+  background: #eee8db;
+}
+
+[data-theme="wamo"] .room-name {
+  font-family: 'Shippori Mincho', serif;
+  color: #1a1a2e;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §12  Player List & Turn Indicators
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .player-item.current-turn {
+  background: #eee8db;
+  border-left: 3px solid #c53d43;
+}
+
+[data-theme="wamo"] .player-score {
+  background: #eee8db;
+  color: #1a1a2e;
+  border-radius: 2px;
+}
+
+[data-theme="wamo"] .turn-indicator {
+  border-radius: 2px;
+  font-family: 'Shippori Mincho', serif;
+  letter-spacing: .05em;
+}
+
+[data-theme="wamo"] .turn-indicator.my-turn {
+  background: linear-gradient(135deg, #f5f0e8, #eee8db);
+  color: #a3232a;
+  border: 2px solid #c53d43;
+}
+
+[data-theme="wamo"] .turn-indicator.other-turn {
+  background: #eee8db;
+  color: #5c5c6e;
+  border: 2px solid #d5cec2;
+}
+
+[data-theme="wamo"] .turn-order-item {
+  background: #eee8db;
+  color: #1a1a2e;
+  border-radius: 2px;
+}
+
+[data-theme="wamo"] .turn-order-item.active {
+  background: #c53d43;
+  color: #fff;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §13  Timer
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .timer-bar {
+  background: #eee8db;
+  border-radius: 1px;
+}
+
+[data-theme="wamo"] .timer-bar-inner {
+  background: #1a1a2e;
+  border-radius: 1px;
+}
+
+[data-theme="wamo"] .timer-bar-inner.warning {
+  background: #b8860b;
+}
+
+[data-theme="wamo"] .timer-bar-inner.danger {
+  background: #c53d43;
+}
+
+[data-theme="wamo"] .timer-text {
+  font-family: 'Shippori Mincho', serif;
+  color: #1a1a2e;
+}
+
+[data-theme="wamo"] .timer-text.warning {
+  color: #b8860b;
+}
+
+[data-theme="wamo"] .timer-text.danger {
+  color: #c53d43;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §14  History Items
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .history-item {
+  background: var(--surface);
+  border-radius: 2px;
+  border-bottom: 1px solid #eee8db;
+}
+
+[data-theme="wamo"] .history-word {
+  font-family: 'Zen Antique', serif;
+  color: #1a1a2e;
+  font-weight: 400;
+  letter-spacing: .05em;
+}
+
+[data-theme="wamo"] .history-connector {
+  color: #c53d43;
+}
+
+[data-theme="wamo"] .history-list::-webkit-scrollbar-thumb {
+  background: #c53d43;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §15  Game Over Overlay & Card
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .game-over-overlay {
+  background: rgba(26, 26, 46, .75);
+}
+
+[data-theme="wamo"] .game-over-card {
+  background: #faf6ef;
+  border-radius: 2px;
+  border-top: 3px solid #c53d43;
+  box-shadow: 0 20px 60px rgba(26, 26, 46, .3);
+}
+
+[data-theme="wamo"] .game-over-card h2 {
+  font-family: 'Zen Antique', serif;
+  color: #c53d43;
+  letter-spacing: .08em;
+}
+
+[data-theme="wamo"] .game-over-reason {
+  font-family: 'Shippori Mincho', serif;
+}
+
+[data-theme="wamo"] .final-score-item {
+  background: #eee8db;
+  border-radius: 2px;
+}
+
+[data-theme="wamo"] .final-score-item:first-child {
+  background: linear-gradient(90deg, #f5ecd0, #ede2b8);
+  border-left: 3px solid #b8860b;
+}
+
+[data-theme="wamo"] .final-rank {
+  color: #c53d43;
+}
+
+[data-theme="wamo"] .final-pts {
+  color: #1a1a2e;
+}
+
+[data-theme="wamo"] .game-over-history-toggle {
+  border-radius: 2px;
+  border-color: #d5cec2;
+}
+
+[data-theme="wamo"] .game-over-history-toggle:hover {
+  background: #eee8db;
+}
+
+[data-theme="wamo"] .game-over-history-word {
+  color: #1a1a2e;
+  font-family: 'Zen Antique', serif;
+}
+
+[data-theme="wamo"] .game-over-history-chain {
+  background: #eee8db;
+  border-radius: 2px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §16  Vote Overlay & Card
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .vote-overlay {
+  background: rgba(26, 26, 46, .7);
+}
+
+[data-theme="wamo"] .vote-card {
+  background: #faf6ef;
+  border-radius: 2px;
+  border-top: 3px solid #c53d43;
+  box-shadow: 0 20px 60px rgba(26, 26, 46, .3);
+}
+
+[data-theme="wamo"] .vote-card h3 {
+  font-family: 'Shippori Mincho', serif;
+  color: #1a1a2e;
+  letter-spacing: .04em;
+}
+
+[data-theme="wamo"] .vote-word {
+  font-family: 'Zen Antique', serif;
+  color: #1a1a2e;
+  letter-spacing: .1em;
+}
+
+[data-theme="wamo"] .vote-progress-bar {
+  background: #eee8db;
+  border-radius: 1px;
+}
+
+[data-theme="wamo"] .vote-progress-bar-inner {
+  background: #c53d43;
+  border-radius: 1px;
+}
+
+[data-theme="wamo"] .btn-accept {
+  background: #2d8b57;
+}
+
+[data-theme="wamo"] .btn-accept:hover {
+  background: #236d44;
+}
+
+[data-theme="wamo"] .btn-reject {
+  background: #c53d43;
+}
+
+[data-theme="wamo"] .btn-reject:hover {
+  background: #a3232a;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §17  Invite Card
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .invite-card {
+  background: linear-gradient(135deg, #f5f0e8, #eee8db);
+  border-left: 3px solid #c53d43;
+  border-radius: 2px;
+}
+
+[data-theme="wamo"] .invite-card .invite-info {
+  color: #1a1a2e;
+}
+
+[data-theme="wamo"] .invite-card .invite-room-title {
+  color: #c53d43;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §18  Rule Badges
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .rule-badge {
+  background: #eee8db;
+  color: #5c5c6e;
+  border-radius: 2px;
+  border: 1px solid #d5cec2;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §19  My Lives Display
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .my-lives-display {
+  background: var(--surface);
+  border-radius: 2px;
+  border: 1px solid #d5cec2;
+  box-shadow: 0 1px 6px rgba(26, 26, 46, .06);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20  Waiting Player Tags
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .waiting-player-list li {
+  background: #eee8db;
+  color: #1a1a2e;
+  border-radius: 2px;
+  border: 1px solid #d5cec2;
+  font-family: 'Zen Maru Gothic', sans-serif;
+}
+
+[data-theme="wamo"] .waiting-player-list li .owner-badge {
+  background: #b8860b;
+  border-radius: 2px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §21  Score Popup
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .score-popup {
+  color: #b8860b;
+  font-family: 'Zen Antique', serif;
+  text-shadow: 0 1px 4px rgba(26, 26, 46, .2);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §22  Messages
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .msg-item {
+  border-bottom-color: #eee8db;
+}
+
+[data-theme="wamo"] .msg-item.msg-success {
+  color: #2d8b57;
+}
+
+[data-theme="wamo"] .msg-item.msg-error {
+  color: #c53d43;
+}
+
+[data-theme="wamo"] .msg-item.msg-info {
+  color: #1a1a2e;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §23  Share Buttons
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .share-btn {
+  border-radius: 2px;
+}
+
+[data-theme="wamo"] .share-btn-x {
+  background: #1a1a2e;
+}
+
+[data-theme="wamo"] .share-btn-line {
+  background: #06c755;
+}
+
+[data-theme="wamo"] .share-btn-copy {
+  background: #c53d43;
+}
+
+[data-theme="wamo"] .share-btn-copy.copied {
+  background: #2d8b57;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §24  Lobby-Specific Overrides
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] #lobby .player-name-section input {
+  border: 1px solid #1a1a2e;
+  border-radius: 2px;
+  background: var(--surface);
+  font-family: 'Zen Antique', serif;
+  letter-spacing: .08em;
+}
+
+[data-theme="wamo"] #lobby .player-name-section input:focus {
+  border-style: solid;
+  border-color: #c53d43;
+}
+
+[data-theme="wamo"] .room-title {
+  font-family: 'Shippori Mincho', serif;
+  color: #c53d43;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §25  Rebuttal Area
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .rebuttal-input {
+  border: 1px solid #1a1a2e;
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+[data-theme="wamo"] .rebuttal-input:focus {
+  border-color: #c53d43;
+}
+
+[data-theme="wamo"] .rebuttal-display {
+  border-left: 3px solid #c53d43;
+  border-radius: 0;
+  background: var(--surface);
+}
+
+[data-theme="wamo"] .rebuttal-display .rebuttal-sender {
+  color: #c53d43;
+}
+
+[data-theme="wamo"] .rebuttal-label {
+  color: #c53d43;
+  font-family: 'Shippori Mincho', serif;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §26  Tooltip Overrides
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .lobby-btn-tooltip {
+  background: #1a1a2e;
+  color: #f5f0e8;
+  border-radius: 2px;
+}
+
+[data-theme="wamo"] .lobby-btn-tooltip::after {
+  border-top-color: #1a1a2e;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §27  Scrollbar Styling
+   ══════════════════════════════════════════════════════════════ */
+[data-theme="wamo"] .history-list::-webkit-scrollbar-thumb,
+[data-theme="wamo"] .messages::-webkit-scrollbar-thumb,
+[data-theme="wamo"] .game-over-history-body::-webkit-scrollbar-thumb {
+  background: #c53d43;
+  border-radius: 1px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   §28  Misc Overrides & Utility
+   ══════════════════════════════════════════════════════════════ */
+
+/* Disable the gradient animation on the header */
+[data-theme="wamo"] .header {
+  animation: none !important;
+}
+
+/* Invite room rules badges */
+[data-theme="wamo"] .invite-room-rules .rule-badge {
+  border: 1px solid #d5cec2;
+}
+
+/* No rooms placeholder */
+[data-theme="wamo"] .no-rooms {
+  font-family: 'Shippori Mincho', serif;
+  color: #888;
+}
+
+/* Waiting text */
+[data-theme="wamo"] .waiting-text {
+  font-family: 'Shippori Mincho', serif;
+}
+
+/* Game header room title */
+[data-theme="wamo"] .game-rules .rule-badge {
+  font-family: 'Zen Maru Gothic', sans-serif;
+}
+
+/* ── Theme Switcher for Wamo ── */
+[data-theme="wamo"] .theme-toggle {
+  border-color: rgba(255,255,255,.25);
+  background: rgba(255,255,255,.08);
+}
+[data-theme="wamo"] .theme-toggle:hover {
+  border-color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.15);
+}
+[data-theme="wamo"] .theme-panel {
+  background: #f5f0e8;
+  box-shadow: 0 8px 32px rgba(26,26,46,.2);
+}
+[data-theme="wamo"] .theme-panel::before {
+  background: #f5f0e8;
+}
+[data-theme="wamo"] .theme-panel-title {
+  color: #888;
+  border-bottom-color: #ddd5c8;
+}
+[data-theme="wamo"] .theme-btn {
+  color: #1a1a2e;
+}
+[data-theme="wamo"] .theme-btn:hover {
+  background: rgba(197,61,67,.08);
+}
+[data-theme="wamo"] .theme-btn.active {
+  background: rgba(197,61,67,.12);
+}
