@@ -485,6 +485,12 @@ input,select{font-family:inherit;font-size:1rem}
         <label>ルーム名</label>
         <input type="text" id="roomNameInput" placeholder="楽しいしりとり" maxlength="20">
       </div>
+      <div class="form-group">
+        <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
+          <input type="checkbox" id="privateRoomSimple" style="display:inline;width:auto;margin-right:.3rem">
+          🔒 プライベートルーム（ロビーに表示しない）
+        </label>
+      </div>
       <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
       <button class="btn btn-outline btn-block" onclick="toggleAdvanced(true)">詳細設定</button>
     </div>
@@ -542,6 +548,12 @@ input,select{font-family:inherit;font-size:1rem}
           濁音・半濁音禁止（がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ）
         </label>
       </div>
+      <div class="form-group">
+        <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
+          <input type="checkbox" id="privateRoomAdvanced" style="display:inline;width:auto;margin-right:.3rem">
+          🔒 プライベートルーム（ロビーに表示しない）
+        </label>
+      </div>
       <div class="form-row">
         <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
         <button class="btn btn-outline btn-block" onclick="toggleAdvanced(false)">簡易モード</button>
@@ -588,6 +600,13 @@ input,select{font-family:inherit;font-size:1rem}
       <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem" onclick="copyRoomLink()">リンクをコピー</button>
       <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem" onclick="leaveRoom()">退出</button>
     </div>
+  </div>
+
+  <!-- Private room invite banner -->
+  <div id="privateRoomBanner" class="card hidden" style="background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;text-align:center;padding:1rem 1.2rem;margin-bottom:.7rem">
+    <div style="font-size:1.1rem;font-weight:700;margin-bottom:.4rem">🔒 プライベートルーム</div>
+    <div style="font-size:.85rem;margin-bottom:.6rem;opacity:.9">このルームはロビーに表示されません。リンクを共有して友達を招待しましょう！</div>
+    <button class="btn" style="background:#fff;color:var(--primary);font-weight:700;padding:.4rem 1.2rem" onclick="copyRoomLink()">📎 招待リンクをコピー</button>
   </div>
 
   <!-- Pre-game / waiting -->
@@ -792,6 +811,16 @@ function copyRoomLink() {
   });
 }
 
+function showPrivateRoomBanner() {
+  const banner = $('privateRoomBanner');
+  if (banner) banner.classList.remove('hidden');
+}
+
+function hidePrivateRoomBanner() {
+  const banner = $('privateRoomBanner');
+  if (banner) banner.classList.add('hidden');
+}
+
 function send(obj) {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
 }
@@ -911,6 +940,8 @@ function createRoom() {
   myName = name;
   const allowedRows = getSelectedKanaRows();
   const noDakuten = $('noDakuten').checked;
+  const isAdvanced = !$('roomCreateAdvanced').classList.contains('hidden');
+  const isPrivate = isAdvanced ? $('privateRoomAdvanced').checked : $('privateRoomSimple').checked;
   send({
     type: 'create_room', name,
     settings: {
@@ -921,7 +952,8 @@ function createRoom() {
       timeLimit: parseInt($('timeLimit').value) || 0,
       maxLives: parseInt($('maxLives').value) || 3,
       allowedRows: allowedRows.length > 0 ? allowedRows : undefined,
-      noDakuten: noDakuten || undefined
+      noDakuten: noDakuten || undefined,
+      private: isPrivate || undefined
     }
   });
 }
@@ -939,6 +971,7 @@ function joinRoom(roomId) {
 function buildRoomBadges(room) {
   const s = room.settings || {};
   let badges = [];
+  if (s.private) badges.push('🔒 プライベート');
   if (room.owner) badges.push(`👑 ホスト: ${esc(room.owner)}`);
   if (s.genre) badges.push(`🏷️ ${esc(s.genre)}`);
   if (s.minLen > 1) badges.push(`最少${s.minLen}文字`);
@@ -1046,6 +1079,12 @@ function onJoined(msg) {
   $('playAgainWait')?.classList.add('hidden');
   $('gameOver').classList.add('hidden');
   addMessage('ルームに参加しました', 'info');
+  // Show prominent invite link for private rooms
+  if (currentSettings.private) {
+    showPrivateRoomBanner();
+  } else {
+    hidePrivateRoomBanner();
+  }
   if (inviteRoomId && inviteRoomId === currentRoomId) {
     clearInvite();
   }
@@ -1097,6 +1136,7 @@ function updateWaitingRoom() {
 function buildRuleBadges(settings) {
   const s = settings || {};
   let badges = [];
+  if (s.private) badges.push('🔒 プライベート');
   if (s.genre) badges.push(`🏷️ ${esc(s.genre)}`);
   if (s.minLen > 1) badges.push(`最少${s.minLen}文字`);
   if (s.maxLen > 0) badges.push(`最大${s.maxLen}文字`);
@@ -1373,6 +1413,7 @@ function backToLobby() {
 function leaveRoom() {
   send({ type: 'leave_room' });
   currentRoomId = '';
+  hidePrivateRoomBanner();
   showView('lobby');
   refreshRooms();
   document.body.classList.toggle('invite-lobby', !!inviteRoomId);

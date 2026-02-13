@@ -20,6 +20,7 @@ type RoomSettings struct {
 	AllowedRows []string `json:"allowedRows,omitempty"` // e.g. ["あ行","か行"]; empty = all rows allowed
 	NoDakuten   bool     `json:"noDakuten,omitempty"`   // disallow dakuten/handakuten characters
 	MaxLives    int      `json:"maxLives"`              // max lives per player (default 3 if 0)
+	Private     bool     `json:"private,omitempty"`      // if true, room is hidden from lobby list
 }
 
 // WordEntry records a word played in the game.
@@ -171,6 +172,10 @@ func (rm *RoomManager) ListRooms() []RoomInfo {
 	var list []RoomInfo
 	for _, r := range rm.rooms {
 		r.mu.Lock()
+		if r.Settings.Private {
+			r.mu.Unlock()
+			continue
+		}
 		info := RoomInfo{
 			ID:          r.ID,
 			Name:        r.Settings.Name,
