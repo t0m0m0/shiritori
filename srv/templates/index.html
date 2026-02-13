@@ -355,6 +355,27 @@ input,select{font-family:inherit;font-size:1rem}
 .vote-timer {
   font-size: .8rem; color: var(--text2); margin-top: .5rem;
 }
+
+/* ── Kana Row Checkboxes ── */
+.kana-row-grid {
+  display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .3rem;
+}
+.kana-row-chip {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .35rem .7rem; border-radius: 20px;
+  background: var(--surface2); border: 2px solid transparent;
+  cursor: pointer; transition: all .2s; font-size: .9rem;
+  user-select: none; font-weight: 500;
+}
+.kana-row-chip:hover { background: #e0e7ff; }
+.kana-row-chip.selected {
+  background: var(--primary); color: #fff; border-color: var(--primary-dark);
+}
+.kana-row-chip input { display: none; }
+.kana-row-select-all {
+  font-size: .8rem; color: var(--primary); cursor: pointer;
+  text-decoration: underline; margin-left: .5rem;
+}
 .vote-waiting {
   color: var(--text2); font-size: .95rem; padding: .5rem 0;
 }
@@ -408,6 +429,10 @@ input,select{font-family:inherit;font-size:1rem}
           <option value="60">60秒</option>
         </select>
       </div>
+    </div>
+    <div class="form-group">
+      <label>使用可能な行（未選択＝すべて使用可能）</label>
+      <div id="kanaRowCheckboxes" class="kana-row-grid"></div>
     </div>
     <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
   </div>
@@ -523,6 +548,7 @@ let roomOwner = '';
 let waitingPlayers = [];
 let voteTimerInterval = null;
 let hasVoted = false;
+let kanaRowNames = [];
 
 const $ = id => document.getElementById(id);
 
@@ -531,7 +557,7 @@ function connect() {
   if (ws && ws.readyState <= 1) return;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
-  ws.onopen = () => { console.log('WS connected'); refreshRooms(); };
+  ws.onopen = () => { console.log('WS connected'); refreshRooms(); send({ type: 'get_genres' }); };
   ws.onclose = () => { console.log('WS closed'); setTimeout(connect, 2000); };
   ws.onerror = e => console.error('WS error', e);
   ws.onmessage = e => handleMessage(JSON.parse(e.data));
@@ -545,6 +571,7 @@ function send(obj) {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'rooms': renderRoomList(msg.rooms || []); break;
+    case 'genres': onGenres(msg); break;
     case 'room_joined': onJoined(msg); break;
     case 'player_joined': onPlayerJoined(msg.player); break;
     case 'player_left': onPlayerLeft(msg.player); break;
@@ -564,6 +591,34 @@ function handleMessage(msg) {
 
 /* ========== LOBBY ========== */
 function refreshRooms() { send({ type: 'get_rooms' }); }
+
+function onGenres(msg) {
+  kanaRowNames = msg.kanaRows || [];
+  renderKanaRowCheckboxes();
+}
+
+function renderKanaRowCheckboxes() {
+  const container = $('kanaRowCheckboxes');
+  if (!container || !kanaRowNames.length) return;
+  container.innerHTML = '';
+  kanaRowNames.forEach(name => {
+    const label = document.createElement('label');
+    label.className = 'kana-row-chip';
+    label.innerHTML = `<input type="checkbox" value="${esc(name)}"> ${esc(name)}`;
+    label.addEventListener('click', () => {
+      setTimeout(() => {
+        const cb = label.querySelector('input');
+        label.classList.toggle('selected', cb.checked);
+      }, 0);
+    });
+    container.appendChild(label);
+  });
+}
+
+function getSelectedKanaRows() {
+  const checkboxes = document.querySelectorAll('#kanaRowCheckboxes input[type=checkbox]:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
+}
 
 function renderRoomList(rooms) {
   const list = $('roomList');
@@ -601,6 +656,7 @@ function getName() {
 function createRoom() {
   const name = getName(); if (!name) return;
   myName = name;
+  const allowedRows = getSelectedKanaRows();
   send({
     type: 'create_room', name,
     settings: {
@@ -608,7 +664,8 @@ function createRoom() {
       minLen: parseInt($('minLen').value) || 1,
       maxLen: parseInt($('maxLen').value) || 0,
       genre: $('genre').value,
-      timeLimit: parseInt($('timeLimit').value) || 0
+      timeLimit: parseInt($('timeLimit').value) || 0,
+      allowedRows: allowedRows.length > 0 ? allowedRows : undefined
     }
   });
 }
@@ -669,6 +726,7 @@ function renderRules() {
   if (s.minLen > 1) badges.push(`最少${s.minLen}文字`);
   if (s.maxLen > 0) badges.push(`最大${s.maxLen}文字`);
   if (s.timeLimit > 0) badges.push(`⏱️ ${s.timeLimit}秒`);
+  if (s.allowedRows && s.allowedRows.length > 0) badges.push(`🎯 ${s.allowedRows.join('・')}`);
   $('gameRules').innerHTML = badges.map(b => `<span class="rule-badge">${b}</span>`).join('');
   timerMax = s.timeLimit || 0;
 }

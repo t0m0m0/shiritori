@@ -179,3 +179,88 @@ func TestGenreValidation(t *testing.T) {
 		t.Error("expected いぬ to not be in food genre")
 	}
 }
+
+func TestGetKanaRow(t *testing.T) {
+	tests := []struct {
+		char     rune
+		expected string
+	}{
+		{'あ', "あ行"},
+		{'い', "あ行"},
+		{'か', "か行"},
+		{'が', "か行"},
+		{'さ', "さ行"},
+		{'じ', "さ行"},
+		{'た', "た行"},
+		{'ば', "は行"},
+		{'ぱ', "は行"},
+		{'ん', "わ行"},
+	}
+	for _, tt := range tests {
+		result := GetKanaRow(tt.char)
+		if result != tt.expected {
+			t.Errorf("GetKanaRow(%q) = %q, want %q", string(tt.char), result, tt.expected)
+		}
+	}
+}
+
+func TestValidateAllowedRows(t *testing.T) {
+	// Only あ行 and か行 allowed
+	allowed := []string{"あ行", "か行"}
+
+	// "あか" uses あ行 and か行 - should pass
+	badChar, _ := ValidateAllowedRows("あか", allowed)
+	if badChar != 0 {
+		t.Error("expected あか to pass with あ行+か行")
+	}
+
+	// "さかな" uses さ行 - should fail
+	badChar, badRow := ValidateAllowedRows("さかな", allowed)
+	if badChar == 0 {
+		t.Error("expected さかな to fail with あ行+か行")
+	}
+	if badRow != "さ行" {
+		t.Errorf("expected badRow=さ行, got %q", badRow)
+	}
+
+	// Empty allowed = all pass
+	badChar, _ = ValidateAllowedRows("さかな", nil)
+	if badChar != 0 {
+		t.Error("expected さかな to pass with no restriction")
+	}
+
+	// Dakuten: が should be in か行
+	badChar, _ = ValidateAllowedRows("がき", allowed)
+	if badChar != 0 {
+		t.Error("expected がき to pass with か行 allowed")
+	}
+}
+
+func TestAllowedRowsInGame(t *testing.T) {
+	room := &Room{
+		Settings: RoomSettings{
+			MinLen:      1,
+			AllowedRows: []string{"あ行", "か行"},
+		},
+		Players: map[string]*Player{
+			"test": {Name: "test", Score: 0, Send: make(chan []byte, 256)},
+		},
+		CurrentWord: "",
+		Status:      "playing",
+		UsedWords:   map[string]bool{},
+		History:     []WordEntry{},
+	}
+
+	// "あき" - all chars in あ行/か行 - should pass
+	result, _ := room.ValidateAndSubmitWord("あき", "test")
+	if result != ValidateOK {
+		t.Error("expected あき to be valid with あ行+か行")
+	}
+
+	// "きた" - た is in た行 - should fail
+	room.CurrentWord = "あき"
+	result, msg := room.ValidateAndSubmitWord("きた", "test")
+	if result != ValidateRejected {
+		t.Errorf("expected きた to be rejected, got result=%d msg=%s", result, msg)
+	}
+}

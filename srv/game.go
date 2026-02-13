@@ -3,6 +3,7 @@ package srv
 import (
 	"fmt"
 	"math/rand/v2"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,11 +12,12 @@ import (
 
 // RoomSettings holds configuration for a game room.
 type RoomSettings struct {
-	Name      string `json:"name"`
-	MinLen    int    `json:"minLen"`
-	MaxLen    int    `json:"maxLen"`
-	Genre     string `json:"genre"`
-	TimeLimit int    `json:"timeLimit"`
+	Name        string   `json:"name"`
+	MinLen      int      `json:"minLen"`
+	MaxLen      int      `json:"maxLen"`
+	Genre       string   `json:"genre"`
+	TimeLimit   int      `json:"timeLimit"`
+	AllowedRows []string `json:"allowedRows,omitempty"` // e.g. ["あ行","か行"]; empty = all rows allowed
 }
 
 // WordEntry records a word played in the game.
@@ -381,6 +383,13 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		}
 	}
 
+	// Check allowed rows
+	if len(r.Settings.AllowedRows) > 0 {
+		if badChar, badRow := ValidateAllowedRows(hiragana, r.Settings.AllowedRows); badChar != 0 {
+			return ValidateRejected, fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
+		}
+	}
+
 	// Check not already used
 	if r.UsedWords[hiragana] {
 		return ValidateRejected, "この言葉はすでに使われています"
@@ -527,6 +536,11 @@ func (r *Room) GetScores() map[string]int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.getScoresLocked()
+}
+
+// formatAllowedRows returns a comma-separated list of allowed row names.
+func formatAllowedRows(rows []string) string {
+	return strings.Join(rows, "・")
 }
 
 // StopTimer cancels the room's timer.

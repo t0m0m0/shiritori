@@ -229,8 +229,9 @@ func (s *Server) handleGetRooms(conn *websocket.Conn) {
 
 func (s *Server) handleGetGenres(conn *websocket.Conn) {
 	sendJSON(conn, map[string]any{
-		"type":   "genres",
-		"genres": getGenreList(),
+		"type":     "genres",
+		"genres":   getGenreList(),
+		"kanaRows": GetKanaRowNames(),
 	})
 }
 

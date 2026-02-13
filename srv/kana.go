@@ -153,3 +153,80 @@ func getFirstChar(hiragana string) rune {
 func charCount(s string) int {
 	return utf8.RuneCountInString(s)
 }
+
+// KanaRow represents a row (行) of the Japanese kana table.
+type KanaRow struct {
+	Name  string // e.g. "あ行"
+	Label string // e.g. "あ"
+	Chars []rune // all hiragana characters in this row
+}
+
+// KanaRows defines all kana rows in standard order.
+// Dakuten/handakuten variants are grouped with their base row.
+var KanaRows = []KanaRow{
+	{Name: "あ行", Label: "あ", Chars: []rune{'あ', 'い', 'う', 'え', 'お'}},
+	{Name: "か行", Label: "か", Chars: []rune{'か', 'き', 'く', 'け', 'こ', 'が', 'ぎ', 'ぐ', 'げ', 'ご'}},
+	{Name: "さ行", Label: "さ", Chars: []rune{'さ', 'し', 'す', 'せ', 'そ', 'ざ', 'じ', 'ず', 'ぜ', 'ぞ'}},
+	{Name: "た行", Label: "た", Chars: []rune{'た', 'ち', 'つ', 'て', 'と', 'だ', 'ぢ', 'づ', 'で', 'ど'}},
+	{Name: "な行", Label: "な", Chars: []rune{'な', 'に', 'ぬ', 'ね', 'の'}},
+	{Name: "は行", Label: "は", Chars: []rune{'は', 'ひ', 'ふ', 'へ', 'ほ', 'ば', 'び', 'ぶ', 'べ', 'ぼ', 'ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ'}},
+	{Name: "ま行", Label: "ま", Chars: []rune{'ま', 'み', 'む', 'め', 'も'}},
+	{Name: "や行", Label: "や", Chars: []rune{'や', 'ゆ', 'よ'}},
+	{Name: "ら行", Label: "ら", Chars: []rune{'ら', 'り', 'る', 'れ', 'ろ'}},
+	{Name: "わ行", Label: "わ", Chars: []rune{'わ', 'を', 'ん'}},
+}
+
+// kanaRowMap maps each hiragana character to its row name.
+var kanaRowMap map[rune]string
+
+func init() {
+	kanaRowMap = make(map[rune]string)
+	for _, row := range KanaRows {
+		for _, ch := range row.Chars {
+			kanaRowMap[ch] = row.Name
+		}
+	}
+}
+
+// GetKanaRow returns the row name (e.g. "あ行") for a hiragana character.
+// Returns "" if the character is not found.
+func GetKanaRow(r rune) string {
+	// Normalize small kana first
+	r = normalizeSmallKana(r)
+	return kanaRowMap[r]
+}
+
+// ValidateAllowedRows checks that every character in a hiragana word
+// belongs to one of the allowed rows. Returns the first offending character
+// and its row name, or empty strings if all characters are valid.
+func ValidateAllowedRows(hiragana string, allowedRows []string) (badChar rune, badRow string) {
+	if len(allowedRows) == 0 {
+		return 0, ""
+	}
+	allowed := make(map[string]bool, len(allowedRows))
+	for _, r := range allowedRows {
+		allowed[r] = true
+	}
+	for _, r := range hiragana {
+		if isLongVowelMark(r) {
+			continue // skip ー
+		}
+		row := GetKanaRow(r)
+		if row == "" {
+			continue // unknown char (shouldn't happen after isJapanese check)
+		}
+		if !allowed[row] {
+			return r, row
+		}
+	}
+	return 0, ""
+}
+
+// GetKanaRowNames returns all row names in order.
+func GetKanaRowNames() []string {
+	names := make([]string, len(KanaRows))
+	for i, r := range KanaRows {
+		names[i] = r.Name
+	}
+	return names
+}
