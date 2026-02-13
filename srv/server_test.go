@@ -91,20 +91,22 @@ func TestIsJapanese(t *testing.T) {
 }
 
 func TestWordValidation(t *testing.T) {
+	settings := RoomSettings{
+		MinLen: 2,
+		MaxLen: 0,
+		Genre:  "",
+	}
 	room := &Room{
-		Settings: RoomSettings{
-			MinLen: 2,
-			MaxLen: 0,
-			Genre:  "",
-		},
+		Settings: settings,
 		Players: map[string]*Player{
 			"test": {Name: "test", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
-		CurrentWord: "しりとり",
-		Status:      "playing",
-		UsedWords:   map[string]bool{"しりとり": true},
-		History:     []WordEntry{},
+		Status: "playing",
 	}
+	room.Engine = NewGameEngine(settings, []string{"test"}, nil)
+	// Pre-set game state
+	room.Engine.CurrentWord = "しりとり"
+	room.Engine.UsedWords["しりとり"] = true
 
 	// Valid word starting with り
 	result, _ := room.ValidateAndSubmitWord("りんご", "test")
@@ -113,7 +115,7 @@ func TestWordValidation(t *testing.T) {
 	}
 
 	// Word ending in ん — now a penalty (word accepted but player loses a life)
-	room.CurrentWord = "りんご"
+	room.Engine.CurrentWord = "りんご"
 	result, msg := room.ValidateAndSubmitWord("ごはん", "test")
 	if result != ValidatePenalty {
 		t.Errorf("expected ごはん to be ValidatePenalty, got result=%d msg=%s", result, msg)
@@ -127,8 +129,8 @@ func TestWordValidation(t *testing.T) {
 	}
 
 	// Already used
-	room.CurrentWord = "りんご" // last char is ご
-	room.UsedWords["ごま"] = true
+	room.Engine.CurrentWord = "りんご" // last char is ご
+	room.Engine.UsedWords["ごま"] = true
 	result, _ = room.ValidateAndSubmitWord("ごま", "test")
 	if result == ValidateOK {
 		t.Error("expected ごま to be rejected (already used)")
@@ -223,19 +225,18 @@ func TestValidateAllowedRows(t *testing.T) {
 }
 
 func TestAllowedRowsInGame(t *testing.T) {
+	settings := RoomSettings{
+		MinLen:      1,
+		AllowedRows: []string{"あ行", "か行"},
+	}
 	room := &Room{
-		Settings: RoomSettings{
-			MinLen:      1,
-			AllowedRows: []string{"あ行", "か行"},
-		},
+		Settings: settings,
 		Players: map[string]*Player{
 			"test": {Name: "test", Score: 0, Lives: 3, Send: make(chan []byte, 256)},
 		},
-		CurrentWord: "",
-		Status:      "playing",
-		UsedWords:   map[string]bool{},
-		History:     []WordEntry{},
+		Status: "playing",
 	}
+	room.Engine = NewGameEngine(settings, []string{"test"}, nil)
 
 	// "あき" - all chars in あ行/か行 - should pass
 	result, _ := room.ValidateAndSubmitWord("あき", "test")
@@ -244,7 +245,7 @@ func TestAllowedRowsInGame(t *testing.T) {
 	}
 
 	// "きた" - た is in た行 - should be a penalty (word accepted, life lost)
-	room.CurrentWord = "あき"
+	room.Engine.CurrentWord = "あき"
 	result, msg := room.ValidateAndSubmitWord("きた", "test")
 	if result != ValidatePenalty {
 		t.Errorf("expected きた to be ValidatePenalty, got result=%d msg=%s", result, msg)
