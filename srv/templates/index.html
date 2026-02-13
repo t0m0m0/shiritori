@@ -2801,6 +2801,7 @@
         if (area) area.classList.toggle("disabled", !isMyTurn);
         const input = $("answerInput");
         if (input) {
+          input.value = "";
           input.disabled = !isMyTurn;
           const isFirstWord = $("currentWord").textContent === "―";
           input.placeholder = isMyTurn
