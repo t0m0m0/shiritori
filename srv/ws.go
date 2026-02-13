@@ -371,15 +371,19 @@ func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *R
 			}
 			room.Status = "finished"
 			loser := ""
-			if len(room.TurnOrder) > 0 && room.TurnIndex < len(room.TurnOrder) {
-				loser = room.TurnOrder[room.TurnIndex]
+			if room.Engine != nil {
+				loser = room.Engine.CurrentTurn()
+			}
+			var history []WordEntry
+			if room.Engine != nil {
+				history, _, _, _ = room.Engine.Snapshot()
 			}
 			gameOverMsg := map[string]any{
 				"type":    "game_over",
 				"reason":  "タイムアップ",
 				"loser":   loser,
 				"scores":  room.getScoresLocked(),
-				"history": room.History,
+				"history": history,
 				"lives":   room.getLivesLocked(),
 			}
 			if room.OnGameOver != nil {
@@ -453,19 +457,15 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Roo
 	// If the game is already playing, broadcast updated turn order and lives to all
 	room.mu.Lock()
 	isPlaying := room.Status == "playing"
-	if isPlaying {
-		turnOrder := make([]string, len(room.TurnOrder))
-		copy(turnOrder, room.TurnOrder)
+	if isPlaying && room.Engine != nil {
+		_, _, turnOrder, turnIndex := room.Engine.Snapshot()
 		currentTurn := ""
-		if len(room.TurnOrder) > 0 && room.TurnIndex < len(room.TurnOrder) {
-			currentTurn = room.TurnOrder[room.TurnIndex]
+		if len(turnOrder) > 0 && turnIndex < len(turnOrder) {
+			currentTurn = turnOrder[turnIndex]
 		}
-		lives := room.getLivesLocked()
-		maxLives := room.Settings.MaxLives
-		if maxLives <= 0 {
-			maxLives = 3
-		}
-		scores := room.getScoresLocked()
+		lives := room.Engine.GetLives()
+		maxLives := room.Engine.MaxLives()
+		scores := room.Engine.GetScores()
 		room.mu.Unlock()
 
 		room.Broadcast(mustMarshal(map[string]any{
@@ -490,19 +490,16 @@ func (s *Server) handleStartGame(room *Room) {
 		return
 	}
 
-	room.mu.Lock()
 	currentTurn := ""
-	if len(room.TurnOrder) > 0 {
-		currentTurn = room.TurnOrder[room.TurnIndex]
+	var turnOrder []string
+	var lives map[string]int
+	maxLives := 3
+	if room.Engine != nil {
+		currentTurn = room.Engine.CurrentTurn()
+		_, _, turnOrder, _ = room.Engine.Snapshot()
+		lives = room.Engine.GetLives()
+		maxLives = room.Engine.MaxLives()
 	}
-	turnOrder := make([]string, len(room.TurnOrder))
-	copy(turnOrder, room.TurnOrder)
-	lives := room.getLivesLocked()
-	maxLives := room.Settings.MaxLives
-	if maxLives <= 0 {
-		maxLives = 3
-	}
-	room.mu.Unlock()
 
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "game_started",
@@ -573,18 +570,17 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 
 	case ValidatePenalty:
 		// Word NOT accepted, but player loses a life
-		room.mu.Lock()
-		var livesLeft int
-		var eliminated, gameOver bool
-		var lastSurvivor string
-		if p, ok := room.Players[playerName]; ok {
-			livesLeft = p.Lives
+		livesLeft := 0
+		if room.Engine != nil {
+			livesLeft = room.Engine.GetPlayerLives(playerName)
 		}
-		eliminated, gameOver, lastSurvivor = room.checkElimination(playerName)
-		lives := room.getLivesLocked()
-		scores := room.getScoresLocked()
-		history := room.History
+		room.mu.Lock()
+		totalPlayers := len(room.Players)
 		room.mu.Unlock()
+		eliminated, gameOver, lastSurvivor := room.Engine.CheckElimination(playerName, totalPlayers)
+		lives := room.Engine.GetLives()
+		scores := room.Engine.GetScores()
+		history, _, _, _ := room.Engine.Snapshot()
 
 		room.Broadcast(mustMarshal(map[string]any{
 			"type":       "penalty",
@@ -761,24 +757,31 @@ func (s *Server) broadcastVoteResult(room *Room, result VoteResolution) {
 		return
 	}
 
-	room.mu.Lock()
 	nextTurn := ""
-	if len(room.TurnOrder) > 0 {
-		nextTurn = room.TurnOrder[room.TurnIndex]
+	var lives map[string]int
+	var scores map[string]int
+	var history []WordEntry
+	var currentWord string
+	if room.Engine != nil {
+		nextTurn = room.Engine.CurrentTurn()
+		lives = room.Engine.GetLives()
+		scores = room.Engine.GetScores()
+		history, currentWord, _, _ = room.Engine.Snapshot()
 	}
-	lives := room.getLivesLocked()
-	scores := room.getScoresLocked()
-	history := make([]WordEntry, len(room.History))
-	copy(history, room.History)
-	currentWord := room.CurrentWord
 
 	// Check if the penalized player is eliminated / game over
-	var penaltyLivesLeft int
-	if p, ok := room.Players[result.Player]; ok {
-		penaltyLivesLeft = p.Lives
+	penaltyLivesLeft := 0
+	if room.Engine != nil {
+		penaltyLivesLeft = room.Engine.GetPlayerLives(result.Player)
 	}
-	eliminated, gameOver, lastSurvivor := room.checkElimination(result.Player)
+	room.mu.Lock()
+	totalPlayers := len(room.Players)
 	room.mu.Unlock()
+	var eliminated, gameOver bool
+	var lastSurvivor string
+	if room.Engine != nil {
+		eliminated, gameOver, lastSurvivor = room.Engine.CheckElimination(result.Player, totalPlayers)
+	}
 
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "vote_result",
@@ -826,16 +829,16 @@ func (s *Server) broadcastVoteResult(room *Room, result VoteResolution) {
 }
 
 func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {
-	room.mu.Lock()
 	nextTurn := ""
-	if len(room.TurnOrder) > 0 {
-		nextTurn = room.TurnOrder[room.TurnIndex]
+	var lives map[string]int
+	var scores map[string]int
+	var history []WordEntry
+	if room.Engine != nil {
+		nextTurn = room.Engine.CurrentTurn()
+		lives = room.Engine.GetLives()
+		scores = room.Engine.GetScores()
+		history, _, _, _ = room.Engine.Snapshot()
 	}
-	lives := room.getLivesLocked()
-	scores := room.getScoresLocked()
-	history := make([]WordEntry, len(room.History))
-	copy(history, room.History)
-	room.mu.Unlock()
 
 	room.Broadcast(mustMarshal(map[string]any{
 		"type":        "word_accepted",

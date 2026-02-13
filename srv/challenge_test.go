@@ -4,20 +4,15 @@ import (
 	"testing"
 )
 
-// newTestRoom creates a Room with VoteManager initialized for tests.
+// newTestRoom creates a Room with Engine and VoteManager initialized for tests.
 func newTestRoom(players map[string]*Player, turnOrder []string) *Room {
+	settings := RoomSettings{MinLen: 1}
 	r := &Room{
-		Settings: RoomSettings{
-			MinLen: 1,
-		},
-		Players:     players,
-		CurrentWord: "",
-		Status:      "playing",
-		UsedWords:   map[string]bool{},
-		History:     []WordEntry{},
-		TurnOrder:   turnOrder,
-		TurnIndex:   0,
+		Settings: settings,
+		Players:  players,
+		Status:   "playing",
 	}
+	r.Engine = NewGameEngine(settings, turnOrder, nil)
 	r.Votes = NewVoteManager(
 		func(name string) bool {
 			r.mu.Lock()

@@ -5,8 +5,6 @@ import (
 	"math/rand/v2"
 	"strings"
 	"sync"
-	"time"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -41,27 +39,20 @@ type Player struct {
 
 // Room holds the state for a single game room.
 type Room struct {
-	mu          sync.Mutex
-	ID          string       `json:"id"`
-	Owner       string       `json:"owner"`
-	Settings    RoomSettings `json:"settings"`
-	Players     map[string]*Player
-	History     []WordEntry `json:"history"`
-	CurrentWord string      `json:"currentWord"`
-	Status      string      `json:"status"` // "waiting", "playing", "finished"
-	UsedWords   map[string]bool
+	mu       sync.Mutex
+	ID       string       `json:"id"`
+	Owner    string       `json:"owner"`
+	Settings RoomSettings `json:"settings"`
+	Players  map[string]*Player
+	Status   string `json:"status"` // "waiting", "playing", "finished"
 
-	// Turn management
-	TurnOrder []string // player names in order
-	TurnIndex int      // index into TurnOrder for current turn
-
-	Timer *TimerManager
+	// Composed managers
+	Engine *GameEngine
+	Timer  *TimerManager
+	Votes  *VoteManager
 
 	// Callback for saving game result on game over (set by Server)
 	OnGameOver func(room *Room, result map[string]any) map[string]any
-
-	// Vote management
-	Votes *VoteManager
 }
 
 
@@ -109,12 +100,10 @@ func (rm *RoomManager) CreateRoom(id string, settings RoomSettings) *Room {
 	defer rm.mu.Unlock()
 
 	room := &Room{
-		ID:        id,
-		Settings:  settings,
-		Players:   make(map[string]*Player),
-		History:   []WordEntry{},
-		Status:    "waiting",
-		UsedWords: make(map[string]bool),
+		ID:       id,
+		Settings: settings,
+		Players:  make(map[string]*Player),
+		Status:   "waiting",
 	}
 	rm.rooms[id] = room
 	return room
@@ -175,30 +164,18 @@ type RoomInfo struct {
 }
 
 // AddPlayer adds a player to the room.
-// If the game is already playing, the player is inserted into TurnOrder
-// right after the last position so they participate from the next full round,
-// and their lives are initialized.
 func (r *Room) AddPlayer(p *Player) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Players[p.Name] = p
 
-	if r.Status == "playing" {
-		// Initialize lives for mid-game joiner
-		maxLives := r.Settings.MaxLives
-		if maxLives <= 0 {
-			maxLives = 3
+	if r.Status == "playing" && r.Engine != nil {
+		r.Engine.AddPlayer(p.Name)
+		// Sync player connection-level state
+		if ps, ok := r.Engine.Players[p.Name]; ok {
+			p.Lives = ps.Lives
+			p.Score = ps.Score
 		}
-		p.Lives = maxLives
-		p.Score = 0
-
-		// Insert right after the current turn index so the new player
-		// gets their first turn at the end of the current round.
-		// Place them at the end of TurnOrder (they'll play after everyone
-		// who was already in the order).
-		r.TurnOrder = append(r.TurnOrder, p.Name)
-	} else {
-		r.TurnOrder = append(r.TurnOrder, p.Name)
 	}
 }
 
@@ -222,18 +199,8 @@ func (r *Room) RemovePlayer(name string) int {
 		close(p.Send)
 		delete(r.Players, name)
 	}
-	// Remove from turn order
-	for i, n := range r.TurnOrder {
-		if n == name {
-			r.TurnOrder = append(r.TurnOrder[:i], r.TurnOrder[i+1:]...)
-			// Adjust TurnIndex if needed
-			if len(r.TurnOrder) > 0 {
-				if r.TurnIndex >= len(r.TurnOrder) {
-					r.TurnIndex = 0
-				}
-			}
-			break
-		}
+	if r.Engine != nil {
+		r.Engine.RemovePlayer(name)
 	}
 	return len(r.Players)
 }
@@ -279,33 +246,35 @@ func (r *Room) StartGame() error {
 	}
 
 	r.Status = "playing"
-	r.CurrentWord = "" // owner picks the first word
 
 	// Build turn order with owner first, rest shuffled
-	r.TurnOrder = make([]string, 0, len(r.Players))
+	turnOrder := make([]string, 0, len(r.Players))
 	for name := range r.Players {
 		if name != r.Owner {
-			r.TurnOrder = append(r.TurnOrder, name)
+			turnOrder = append(turnOrder, name)
 		}
 	}
-	rand.Shuffle(len(r.TurnOrder), func(i, j int) {
-		r.TurnOrder[i], r.TurnOrder[j] = r.TurnOrder[j], r.TurnOrder[i]
+	rand.Shuffle(len(turnOrder), func(i, j int) {
+		turnOrder[i], turnOrder[j] = turnOrder[j], turnOrder[i]
 	})
-	r.TurnOrder = append([]string{r.Owner}, r.TurnOrder...)
-	r.TurnIndex = 0
+	turnOrder = append([]string{r.Owner}, turnOrder...)
 
-	// Reset scores and initialize lives
-	maxLives := r.Settings.MaxLives
-	if maxLives <= 0 {
-		maxLives = 3
+	// Create game engine
+	resetTimer := func() {
+		if r.Timer != nil {
+			r.Timer.Reset()
+		}
 	}
-	for _, p := range r.Players {
-		p.Score = 0
-		p.Lives = maxLives
+	r.Engine = NewGameEngine(r.Settings, turnOrder, resetTimer)
+
+	// Sync player connection-level state
+	for name, p := range r.Players {
+		if ps, ok := r.Engine.Players[name]; ok {
+			p.Score = ps.Score
+			p.Lives = ps.Lives
+		}
 	}
 
-	r.History = []WordEntry{}
-	r.UsedWords = make(map[string]bool)
 	if r.Votes != nil {
 		r.Votes.Clear()
 	}
@@ -333,187 +302,76 @@ func (r *Room) UpdateSettings(s RoomSettings) error {
 	return nil
 }
 
-// resetTimer resets the countdown to the room's time limit.
-func (r *Room) resetTimer() {
-	if r.Timer != nil {
-		r.Timer.Reset()
-	}
-}
 
-// ValidateAndSubmitWord checks a word and applies it if valid.
-// Returns (result, message). If result is ValidateVote, a vote has been started.
+// ValidateAndSubmitWord delegates to GameEngine for word validation and submission.
 func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.Status != "playing" {
+	if r.Status != "playing" || r.Engine == nil {
+		r.mu.Unlock()
 		return ValidateRejected, "ゲームが開始されていません"
 	}
+	r.mu.Unlock()
 
-	// Reject if a vote is in progress
-	if r.Votes != nil && r.Votes.HasPendingVote() {
-		return ValidateRejected, "投票中です。投票が終わるまでお待ちください"
+	hasVotePending := r.Votes != nil && r.Votes.HasPendingVote()
+	result, msg := r.Engine.ValidateAndSubmitWord(word, playerName, hasVotePending)
+
+	// Sync player state back to connection-level Player
+	if result == ValidateOK || result == ValidatePenalty {
+		r.syncPlayerState(playerName)
 	}
-
-	// Check it's this player's turn
-	if len(r.TurnOrder) > 0 && r.TurnOrder[r.TurnIndex] != playerName {
-		return ValidateRejected, fmt.Sprintf("%sさんの番です", r.TurnOrder[r.TurnIndex])
-	}
-
-	// Check player is not eliminated
-	if p, ok := r.Players[playerName]; ok && p.Lives <= 0 {
-		return ValidateRejected, "あなたは脱落済みです"
-	}
-
-	// Check that word is valid Japanese kana
-	if !isJapanese(word) {
-		return ValidateRejected, "ひらがな・カタカナで入力してください"
-	}
-
-	hiragana := toHiragana(word)
-
-	// Check length
-	wlen := charCount(hiragana)
-	if r.Settings.MinLen > 0 && wlen < r.Settings.MinLen {
-		return ValidateRejected, fmt.Sprintf("%d文字以上で入力してください", r.Settings.MinLen)
-	}
-	if r.Settings.MaxLen > 0 && wlen > r.Settings.MaxLen {
-		return ValidateRejected, fmt.Sprintf("%d文字以下で入力してください", r.Settings.MaxLen)
-	}
-
-	// Check first char matches last char of current word (skip for first word)
-	if r.CurrentWord != "" {
-		prevHiragana := toHiragana(r.CurrentWord)
-		lastChar := getLastChar(prevHiragana)
-		firstChar := getFirstChar(hiragana)
-
-		if lastChar != firstChar {
-			return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
-		}
-	}
-
-	// Check not already used — penalty (lose a life)
-	if r.UsedWords[hiragana] {
-		r.applyPenaltyLocked(playerName)
-		return ValidatePenalty, "この言葉はすでに使われています"
-	}
-
-	// --- Penalty checks: word NOT accepted, but player loses a life ---
-
-	// Check ends with ん
-	runes := []rune(hiragana)
-	if runes[len(runes)-1] == 'ん' {
-		r.applyPenaltyLocked(playerName)
-		return ValidatePenalty, "「ん」で終わる言葉を使いました"
-	}
-
-	// Check no dakuten/handakuten
-	if r.Settings.NoDakuten {
-		if badChar := ValidateNoDakuten(hiragana); badChar != 0 {
-			r.applyPenaltyLocked(playerName)
-			return ValidatePenalty, fmt.Sprintf("「%c」は濁音・半濁音の文字です（濁音・半濁音禁止ルール）", badChar)
-		}
-	}
-
-	// Check allowed rows
-	if len(r.Settings.AllowedRows) > 0 {
-		if badChar, badRow := ValidateAllowedRows(hiragana, r.Settings.AllowedRows); badChar != 0 {
-			r.applyPenaltyLocked(playerName)
-			return ValidatePenalty, fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
-		}
-	}
-
-	// All good — apply the word
-	r.applyWordLocked(word, hiragana, playerName)
-	return ValidateOK, ""
-}
-
-// applyWordLocked applies an accepted word. Caller must hold r.mu.
-func (r *Room) applyWordLocked(word, hiragana, playerName string) {
-	r.UsedWords[hiragana] = true
-	r.CurrentWord = word
-	r.History = append(r.History, WordEntry{
-		Word:   word,
-		Player: playerName,
-		Time:   time.Now().Format(time.RFC3339),
-	})
-
-	// Award point
-	if p, ok := r.Players[playerName]; ok {
-		p.Score++
-	}
-
-	// Advance turn, skipping eliminated players
-	if len(r.TurnOrder) > 0 {
-		start := r.TurnIndex
-		for {
-			r.TurnIndex = (r.TurnIndex + 1) % len(r.TurnOrder)
-			// If we cycled all the way back, stop (avoid infinite loop)
-			if r.TurnIndex == start {
-				break
-			}
-			// If the current turn player is alive, stop
-			nextName := r.TurnOrder[r.TurnIndex]
-			if p, ok := r.Players[nextName]; ok && p.Lives > 0 {
-				break
-			}
-		}
-	}
-
-	// Reset timer
-	r.resetTimer()
-
-	// Clear any resolved vote
-	if r.Votes != nil {
+	if result == ValidateOK && r.Votes != nil {
 		r.Votes.Clear()
 	}
+	return result, msg
 }
 
-// applyPenaltyLocked decrements a player's lives. Caller must hold r.mu.
-func (r *Room) applyPenaltyLocked(playerName string) {
-	if p, ok := r.Players[playerName]; ok {
-		p.Lives--
+// syncPlayerState syncs GameEngine state back to the connection-level Player.
+func (r *Room) syncPlayerState(playerName string) {
+	if r.Engine == nil {
+		return
 	}
-}
-
-// getAlivePlayers returns the names of players with lives > 0. Caller must hold r.mu.
-func (r *Room) getAlivePlayers() []string {
-	var alive []string
-	for name, p := range r.Players {
-		if p.Lives > 0 {
-			alive = append(alive, name)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.Engine.mu.Lock()
+	defer r.Engine.mu.Unlock()
+	if ps, ok := r.Engine.Players[playerName]; ok {
+		if p, ok2 := r.Players[playerName]; ok2 {
+			p.Score = ps.Score
+			p.Lives = ps.Lives
 		}
 	}
-	return alive
 }
 
-// checkElimination checks if a player is eliminated and whether the game is over.
-// Returns (eliminated, gameOver, lastSurvivor). Caller must hold r.mu.
+// syncAllPlayerState syncs all player states from Engine to Room.
+func (r *Room) syncAllPlayerState() {
+	if r.Engine == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.Engine.mu.Lock()
+	defer r.Engine.mu.Unlock()
+	for name, ps := range r.Engine.Players {
+		if p, ok := r.Players[name]; ok {
+			p.Score = ps.Score
+			p.Lives = ps.Lives
+		}
+	}
+}
+
+// checkElimination delegates to GameEngine.
 func (r *Room) checkElimination(playerName string) (eliminated bool, gameOver bool, lastSurvivor string) {
-	if p, ok := r.Players[playerName]; ok && p.Lives <= 0 {
-		eliminated = true
-	}
-	alive := r.getAlivePlayers()
+	r.mu.Lock()
 	totalPlayers := len(r.Players)
-	if totalPlayers <= 1 {
-		// Solo play: game over only when player is eliminated
-		if len(alive) == 0 {
-			gameOver = true
-		}
-	} else {
-		// Multiplayer: game over when 1 or fewer alive
-		if len(alive) <= 1 {
-			gameOver = true
-			if len(alive) == 1 {
-				lastSurvivor = alive[0]
-			}
-		}
-	}
-	return
+	r.mu.Unlock()
+	return r.Engine.CheckElimination(playerName, totalPlayers)
 }
 
-// getLivesLocked returns a map of player lives. Caller must hold r.mu.
+// getLivesLocked returns lives from GameEngine. Caller must hold r.mu.
 func (r *Room) getLivesLocked() map[string]int {
+	if r.Engine != nil {
+		return r.Engine.GetLives()
+	}
 	lives := make(map[string]int, len(r.Players))
 	for name, p := range r.Players {
 		lives[name] = p.Lives
@@ -521,11 +379,18 @@ func (r *Room) getLivesLocked() map[string]int {
 	return lives
 }
 
-// GetLives returns a map of player lives (public, acquires lock).
+// GetLives returns a map of player lives.
 func (r *Room) GetLives() map[string]int {
+	if r.Engine != nil {
+		return r.Engine.GetLives()
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.getLivesLocked()
+	lives := make(map[string]int, len(r.Players))
+	for name, p := range r.Players {
+		lives[name] = p.Lives
+	}
+	return lives
 }
 
 // CastVote delegates to VoteManager. If resolved and challenge rejected, applies revert to game state.
@@ -550,12 +415,10 @@ func (r *Room) ForceResolveVote() (resolved bool, result VoteResolution) {
 func (r *Room) applyVoteResult(result *VoteResolution) {
 	if result.Type == "genre" {
 		if result.Accepted {
-			// Get the pending vote info before it's cleared
 			pv := r.Votes.GetPending()
-			if pv != nil {
-				r.mu.Lock()
-				r.applyWordLocked(pv.Word, pv.Hiragana, pv.Player)
-				r.mu.Unlock()
+			if pv != nil && r.Engine != nil {
+				r.Engine.ApplyWord(pv.Word, pv.Hiragana, pv.Player)
+				r.syncPlayerState(pv.Player)
 			}
 		}
 		r.Votes.Clear()
@@ -567,54 +430,27 @@ func (r *Room) applyVoteResult(result *VoteResolution) {
 		return
 	}
 
-	// Challenge rejected — revert the word
-	r.mu.Lock()
-	if len(r.History) > 0 {
-		r.History = r.History[:len(r.History)-1]
+	// Challenge rejected — revert the word via Engine
+	if r.Engine != nil {
+		r.Engine.RevertWord(result.Word, result.Player)
+		r.syncPlayerState(result.Player)
 	}
-	delete(r.UsedWords, toHiragana(result.Word))
-
-	// Revert score
-	if p, ok := r.Players[result.Player]; ok {
-		if p.Score > 0 {
-			p.Score--
-		}
-	}
-
-	prevWord := ""
-	if len(r.History) > 0 {
-		prevWord = r.History[len(r.History)-1].Word
-	}
-
-	// Turn stays with the original player
-	for i, name := range r.TurnOrder {
-		if name == result.Player {
-			r.TurnIndex = i
-			break
-		}
-	}
-
-	// Penalize the original player
-	r.applyPenaltyLocked(result.Player)
-
-	r.CurrentWord = prevWord
-	r.resetTimer()
-	r.mu.Unlock()
 }
 
 // StartChallengeVote starts a vote to challenge the last word.
 func (r *Room) StartChallengeVote(challengerName string) (VoteInfo, error) {
 	r.mu.Lock()
-	if r.Status != "playing" {
+	if r.Status != "playing" || r.Engine == nil {
 		r.mu.Unlock()
 		return VoteInfo{}, fmt.Errorf("ゲームが開始されていません")
 	}
-	if len(r.History) == 0 {
-		r.mu.Unlock()
+	r.mu.Unlock()
+
+	history, _, _, _ := r.Engine.Snapshot()
+	if len(history) == 0 {
 		return VoteInfo{}, fmt.Errorf("まだ単語がありません")
 	}
-	last := r.History[len(r.History)-1]
-	r.mu.Unlock()
+	last := history[len(history)-1]
 
 	playerExists := func(name string) bool {
 		r.mu.Lock()
@@ -632,6 +468,9 @@ func (r *Room) WithdrawChallenge(challengerName string) bool {
 
 // getScoresLocked returns a map of player scores. Caller must hold r.mu.
 func (r *Room) getScoresLocked() map[string]int {
+	if r.Engine != nil {
+		return r.Engine.GetScores()
+	}
 	scores := make(map[string]int, len(r.Players))
 	for name, p := range r.Players {
 		scores[name] = p.Score
@@ -641,9 +480,16 @@ func (r *Room) getScoresLocked() map[string]int {
 
 // GetScores returns a map of player scores.
 func (r *Room) GetScores() map[string]int {
+	if r.Engine != nil {
+		return r.Engine.GetScores()
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.getScoresLocked()
+	scores := make(map[string]int, len(r.Players))
+	for name, p := range r.Players {
+		scores[name] = p.Score
+	}
+	return scores
 }
 
 // formatAllowedRows returns a comma-separated list of allowed row names.
@@ -663,12 +509,25 @@ func (r *Room) GetState() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	scores := r.getScoresLocked()
 	players := make([]map[string]any, 0, len(r.Players))
-	for name, p := range r.Players {
+	for name := range r.Players {
 		players = append(players, map[string]any{
 			"name":  name,
-			"score": p.Score,
+			"score": scores[name],
 		})
+	}
+
+	var history []WordEntry
+	var currentWord string
+	var turnOrder []string
+	var currentTurn string
+	if r.Engine != nil {
+		var turnIndex int
+		history, currentWord, turnOrder, turnIndex = r.Engine.Snapshot()
+		if len(turnOrder) > 0 && turnIndex < len(turnOrder) {
+			currentTurn = turnOrder[turnIndex]
+		}
 	}
 
 	state := map[string]any{
@@ -676,17 +535,17 @@ func (r *Room) GetState() map[string]any {
 		"roomId":      r.ID,
 		"settings":    r.Settings,
 		"players":     players,
-		"history":     r.History,
-		"currentWord": r.CurrentWord,
+		"history":     history,
+		"currentWord": currentWord,
 		"status":      r.Status,
 	}
 
 	if r.Settings.TimeLimit > 0 && r.Timer != nil {
 		state["timeLeft"] = r.Timer.TimeLeft()
 	}
-	state["turnOrder"] = r.TurnOrder
-	if len(r.TurnOrder) > 0 && r.TurnIndex < len(r.TurnOrder) {
-		state["currentTurn"] = r.TurnOrder[r.TurnIndex]
+	state["turnOrder"] = turnOrder
+	if currentTurn != "" {
+		state["currentTurn"] = currentTurn
 	}
 	state["owner"] = r.Owner
 	state["lives"] = r.getLivesLocked()
