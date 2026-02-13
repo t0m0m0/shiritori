@@ -670,13 +670,13 @@ func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 		return true, result
 	}
 
-	// Challenge vote: accepted = word stays; rejected = word removed, challenger plays.
+	// Challenge vote: accepted = word stays; rejected = word removed, original player retries.
 	if accepted {
 		r.pendingVote = nil
 		return true, result
 	}
 
-	// Revert last word and hand turn to challenger.
+	// Revert last word. The original player keeps their turn but loses a life.
 	if len(r.History) > 0 {
 		r.History = r.History[:len(r.History)-1]
 	}
@@ -685,16 +685,22 @@ func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 	if len(r.History) > 0 {
 		prevWord = r.History[len(r.History)-1].Word
 	}
-	challengerIndex := -1
+
+	// Turn stays with the original player (find their index)
+	originalPlayerIndex := -1
 	for i, name := range r.TurnOrder {
-		if name == r.pendingVote.Challenger {
-			challengerIndex = i
+		if name == r.pendingVote.Player {
+			originalPlayerIndex = i
 			break
 		}
 	}
-	if challengerIndex >= 0 {
-		r.TurnIndex = challengerIndex
+	if originalPlayerIndex >= 0 {
+		r.TurnIndex = originalPlayerIndex
 	}
+
+	// Penalize the original player (lose a life)
+	r.applyPenaltyLocked(r.pendingVote.Player)
+
 	result.Reverted = true
 	result.Player = r.pendingVote.Player
 	result.Challenger = r.pendingVote.Challenger
@@ -703,7 +709,7 @@ func (r *Room) resolveVoteLocked() (resolved bool, result VoteResolution) {
 
 	// Restore current word to previous
 	r.CurrentWord = prevWord
-	// Reset timer
+	// Reset timer so the player gets a fresh attempt
 	r.resetTimer()
 
 	r.pendingVote = nil

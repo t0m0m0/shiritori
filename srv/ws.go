@@ -555,6 +555,17 @@ func (s *Server) broadcastVoteResult(room *Room, result VoteResolution) {
 		nextTurn = room.TurnOrder[room.TurnIndex]
 	}
 	lives := room.getLivesLocked()
+	scores := room.getScoresLocked()
+	history := make([]WordEntry, len(room.History))
+	copy(history, room.History)
+	currentWord := room.CurrentWord
+
+	// Check if the penalized player is eliminated / game over
+	var penaltyLivesLeft int
+	if p, ok := room.Players[result.Player]; ok {
+		penaltyLivesLeft = p.Lives
+	}
+	eliminated, gameOver, lastSurvivor := room.checkElimination(result.Player)
 	room.mu.Unlock()
 
 	room.Broadcast(mustMarshal(map[string]any{
@@ -565,13 +576,37 @@ func (s *Server) broadcastVoteResult(room *Room, result VoteResolution) {
 		"challenger":  result.Challenger,
 		"accepted":    false,
 		"reverted":    true,
-		"currentWord": room.CurrentWord,
+		"currentWord": currentWord,
 		"currentTurn": nextTurn,
 		"lives":       lives,
-		"scores":      room.GetScores(),
-		"history":     room.History,
-		"message":     fmt.Sprintf("投票により「%s」は却下されました。%sさんの番です", result.Word, nextTurn),
+		"scores":      scores,
+		"history":     history,
+		"penaltyPlayer": result.Player,
+		"penaltyLives":  penaltyLivesLeft,
+		"eliminated":    eliminated,
+		"message":     fmt.Sprintf("投票により「%s」は却下されました。%sさんはライフ-1、もう一度入力してください", result.Word, result.Player),
 	}))
+
+	if gameOver {
+		room.mu.Lock()
+		room.Status = "finished"
+		room.pendingVote = nil
+		room.mu.Unlock()
+		room.StopTimer()
+
+		reason := "ゲーム終了"
+		if lastSurvivor != "" {
+			reason = fmt.Sprintf("%sさんの勝利！", lastSurvivor)
+		}
+		room.Broadcast(mustMarshal(map[string]any{
+			"type":    "game_over",
+			"reason":  reason,
+			"winner":  lastSurvivor,
+			"scores":  scores,
+			"history": history,
+			"lives":   lives,
+		}))
+	}
 }
 
 func (s *Server) broadcastWordAccepted(room *Room, word, playerName string) {

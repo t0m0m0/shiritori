@@ -1527,6 +1527,22 @@ function onVoteResult(msg) {
       }
       if (msg.scores || msg.lives) updateScoresAndLives(msg.scores, msg.lives);
       if (msg.currentTurn) currentTurn = msg.currentTurn;
+      // Show penalty info for challenge rejection
+      if (msg.penaltyPlayer) {
+        if (msg.lives) currentLives = msg.lives;
+        if (msg.eliminated) {
+          addMessage(`💀 ${msg.penaltyPlayer}さんが脱落！`, 'error');
+          if (msg.penaltyPlayer === myName) {
+            addMessage('💀 あなたは脱落しました…', 'error');
+          }
+        } else {
+          addMessage(`💔 ${msg.penaltyPlayer}さんがライフ-1！残り${msg.penaltyLives}`, 'error');
+          if (msg.penaltyPlayer === myName) {
+            document.body.style.animation = 'shake .4s ease';
+            setTimeout(() => document.body.style.animation = '', 500);
+          }
+        }
+      }
       updateMyLives();
       updateTurnDisplay();
     }
