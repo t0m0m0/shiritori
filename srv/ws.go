@@ -64,6 +64,274 @@ func generateRoomID() string {
 	return string(b)
 }
 
+// WSConn holds per-connection state for a WebSocket client.
+type WSConn struct {
+	server        *Server
+	conn          *websocket.Conn
+	playerName    string
+	currentRoom   *Room
+	currentPlayer *Player
+}
+
+// sendDirect writes a message directly to the WebSocket connection.
+// Only safe to use BEFORE writePump is started (i.e., before joining a room).
+func (wsc *WSConn) sendDirect(v any) {
+	wsc.conn.WriteJSON(v)
+}
+
+// sendToPlayer sends a message via the player's Send channel.
+// Safe to use after writePump is started.
+func (wsc *WSConn) sendToPlayer(v any) {
+	if wsc.currentPlayer == nil {
+		return
+	}
+	data := mustMarshal(v)
+	select {
+	case wsc.currentPlayer.Send <- data:
+	default:
+		// drop if channel full
+	}
+}
+
+// sendMsg sends a message using the appropriate method based on current state.
+func (wsc *WSConn) sendMsg(v any) {
+	if wsc.currentPlayer != nil {
+		wsc.sendToPlayer(v)
+	} else {
+		wsc.sendDirect(v)
+	}
+}
+
+func (wsc *WSConn) sendErr(message string) {
+	wsc.sendMsg(map[string]any{
+		"type":    "error",
+		"message": message,
+	})
+}
+
+// leaveCurrentRoom removes the player from their current room.
+func (wsc *WSConn) leaveCurrentRoom() {
+	if wsc.currentRoom == nil || wsc.playerName == "" {
+		return
+	}
+	remaining := wsc.currentRoom.RemovePlayer(wsc.playerName)
+	wsc.server.Rooms.UntrackPlayer(wsc.playerName)
+
+	wsc.currentRoom.Broadcast(mustMarshal(map[string]any{
+		"type":   "player_left",
+		"player": wsc.playerName,
+	}))
+
+	wsc.currentRoom.Broadcast(mustMarshal(map[string]any{
+		"type":    "player_list",
+		"players": wsc.currentRoom.PlayerNames(),
+	}))
+
+	if remaining == 0 {
+		wsc.currentRoom.StopTimer()
+		wsc.server.Rooms.RemoveRoom(wsc.currentRoom.ID)
+		slog.Info("room removed (empty)", "roomId", wsc.currentRoom.ID)
+	}
+	wsc.currentRoom = nil
+	wsc.currentPlayer = nil
+}
+
+func (wsc *WSConn) handleGetRooms(msg WSMessage) {
+	rooms := wsc.server.Rooms.ListRooms()
+	if rooms == nil {
+		rooms = []RoomInfo{}
+	}
+	wsc.sendMsg(map[string]any{
+		"type":  "rooms",
+		"rooms": rooms,
+	})
+}
+
+func (wsc *WSConn) handleGetGenres(msg WSMessage) {
+	wsc.sendMsg(map[string]any{
+		"type":     "genres",
+		"kanaRows": GetKanaRowNames(),
+	})
+}
+
+func (wsc *WSConn) handleCreateRoom(msg WSMessage) {
+	if msg.Name == "" || msg.Settings == nil {
+		wsc.sendErr("名前とルーム設定が必要です")
+		return
+	}
+	// Check if this name is already in a room (from another connection)
+	if existingRoomID := wsc.server.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
+		// Only allow if this is the same connection & same player name (re-creating)
+		if wsc.playerName != msg.Name || wsc.currentRoom == nil || wsc.currentRoom.ID != existingRoomID {
+			wsc.sendErr(fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
+			return
+		}
+	}
+	// Leave current room first if in one
+	wsc.leaveCurrentRoom()
+	wsc.playerName = msg.Name
+	room, player := wsc.server.handleCreateRoom(wsc.conn, wsc.playerName, msg.Settings)
+	wsc.currentRoom = room
+	wsc.currentPlayer = player
+	wsc.server.Rooms.TrackPlayer(wsc.playerName, wsc.currentRoom.ID)
+	go writePump(wsc.conn, wsc.currentPlayer)
+}
+
+func (wsc *WSConn) handleJoin(msg WSMessage) {
+	if msg.Name == "" || msg.RoomID == "" {
+		wsc.sendErr("名前とルームIDが必要です")
+		return
+	}
+	// Check if this name is already in a room (from another connection)
+	if existingRoomID := wsc.server.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
+		// Only allow if this is the same connection & same player name (re-joining)
+		if wsc.playerName != msg.Name || wsc.currentRoom == nil || wsc.currentRoom.ID != existingRoomID {
+			wsc.sendErr(fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
+			return
+		}
+	}
+	// Leave current room first if in one
+	wsc.leaveCurrentRoom()
+	wsc.playerName = msg.Name
+	room, player, err := wsc.server.handleJoinRoom(wsc.conn, wsc.playerName, msg.RoomID)
+	if err != nil {
+		wsc.sendErr(err.Error())
+		return
+	}
+	wsc.currentRoom = room
+	wsc.currentPlayer = player
+	wsc.server.Rooms.TrackPlayer(wsc.playerName, wsc.currentRoom.ID)
+	go writePump(wsc.conn, wsc.currentPlayer)
+}
+
+func (wsc *WSConn) handleLeaveRoom(msg WSMessage) {
+	wsc.leaveCurrentRoom()
+}
+
+func (wsc *WSConn) handleStartGame(msg WSMessage) {
+	if wsc.currentRoom == nil {
+		wsc.sendErr("ルームに参加していません")
+		return
+	}
+	if wsc.currentRoom.Owner != wsc.playerName {
+		wsc.sendErr("ゲームを開始できるのはルーム作成者のみです")
+		return
+	}
+	if msg.Settings != nil {
+		if err := wsc.currentRoom.UpdateSettings(*msg.Settings); err != nil {
+			wsc.sendErr(err.Error())
+			return
+		}
+		// Broadcast updated settings to all players
+		wsc.currentRoom.Broadcast(mustMarshal(map[string]any{
+			"type":     "settings_updated",
+			"settings": wsc.currentRoom.Settings,
+		}))
+	}
+	wsc.server.handleStartGame(wsc.currentRoom)
+}
+
+func (wsc *WSConn) handleAnswer(msg WSMessage) {
+	if wsc.currentRoom == nil || wsc.playerName == "" {
+		wsc.sendErr("ルームに参加していません")
+		return
+	}
+	wsc.server.handleAnswer(wsc.currentRoom, wsc.playerName, msg.Word)
+}
+
+func (wsc *WSConn) handleVote(msg WSMessage) {
+	if wsc.currentRoom == nil || wsc.playerName == "" {
+		wsc.sendErr("ルームに参加していません")
+		return
+	}
+	if msg.Accept == nil {
+		wsc.sendErr("投票内容が必要です")
+		return
+	}
+	wsc.server.handleVote(wsc.currentRoom, wsc.playerName, *msg.Accept)
+}
+
+func (wsc *WSConn) handleChallenge(msg WSMessage) {
+	if wsc.currentRoom == nil || wsc.playerName == "" {
+		wsc.sendErr("ルームに参加していません")
+		return
+	}
+	wsc.server.handleChallenge(wsc.currentRoom, wsc.playerName)
+}
+
+func (wsc *WSConn) handleRebuttal(msg WSMessage) {
+	if wsc.currentRoom == nil || wsc.playerName == "" {
+		wsc.sendErr("ルームに参加していません")
+		return
+	}
+	if msg.Rebuttal == "" {
+		wsc.sendErr("反論メッセージが必要です")
+		return
+	}
+	wsc.server.handleRebuttal(wsc.currentRoom, wsc.playerName, msg.Rebuttal)
+}
+
+func (wsc *WSConn) handleWithdrawChallenge(msg WSMessage) {
+	if wsc.currentRoom == nil || wsc.playerName == "" {
+		wsc.sendErr("ルームに参加していません")
+		return
+	}
+	wsc.server.handleWithdrawChallenge(wsc.currentRoom, wsc.playerName)
+}
+
+func (wsc *WSConn) handlePing(msg WSMessage) {
+	wsc.sendMsg(map[string]any{
+		"type": "pong",
+	})
+}
+
+// readLoop reads messages from the WebSocket and dispatches them to handlers.
+func (wsc *WSConn) readLoop() {
+	defer func() {
+		wsc.leaveCurrentRoom()
+		wsc.conn.Close()
+	}()
+
+	for {
+		var msg WSMessage
+		if err := wsc.conn.ReadJSON(&msg); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+				slog.Warn("websocket read", "error", err)
+			}
+			return
+		}
+
+		switch msg.Type {
+		case "get_rooms":
+			wsc.handleGetRooms(msg)
+		case "get_genres":
+			wsc.handleGetGenres(msg)
+		case "create_room":
+			wsc.handleCreateRoom(msg)
+		case "join":
+			wsc.handleJoin(msg)
+		case "leave_room":
+			wsc.handleLeaveRoom(msg)
+		case "start_game":
+			wsc.handleStartGame(msg)
+		case "answer":
+			wsc.handleAnswer(msg)
+		case "vote":
+			wsc.handleVote(msg)
+		case "challenge":
+			wsc.handleChallenge(msg)
+		case "rebuttal":
+			wsc.handleRebuttal(msg)
+		case "withdraw_challenge":
+			wsc.handleWithdrawChallenge(msg)
+		case "ping":
+			wsc.handlePing(msg)
+		default:
+			wsc.sendErr(fmt.Sprintf("unknown message type: %s", msg.Type))
+		}
+	}
+}
+
 // HandleWS handles WebSocket connections for the game.
 func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -78,230 +346,11 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	var playerName string
-	var currentRoom *Room
-	var currentPlayer *Player
-
-	// sendDirect writes a message directly to the WebSocket connection.
-	// Only safe to use BEFORE writePump is started (i.e., before joining a room).
-	sendDirect := func(v any) {
-		conn.WriteJSON(v)
+	wsc := &WSConn{
+		server: s,
+		conn:   conn,
 	}
-
-	// sendToPlayer sends a message via the player's Send channel.
-	// Safe to use after writePump is started.
-	sendToPlayer := func(v any) {
-		if currentPlayer == nil {
-			return
-		}
-		data := mustMarshal(v)
-		select {
-		case currentPlayer.Send <- data:
-		default:
-			// drop if channel full
-		}
-	}
-
-	// sendMsg sends a message using the appropriate method based on current state.
-	sendMsg := func(v any) {
-		if currentPlayer != nil {
-			sendToPlayer(v)
-		} else {
-			sendDirect(v)
-		}
-	}
-
-	sendErr := func(message string) {
-		sendMsg(map[string]any{
-			"type":    "error",
-			"message": message,
-		})
-	}
-
-	// leaveCurrentRoom removes the player from their current room.
-	leaveCurrentRoom := func() {
-		if currentRoom == nil || playerName == "" {
-			return
-		}
-		remaining := currentRoom.RemovePlayer(playerName)
-		s.Rooms.UntrackPlayer(playerName)
-
-		currentRoom.Broadcast(mustMarshal(map[string]any{
-			"type":   "player_left",
-			"player": playerName,
-		}))
-
-		currentRoom.Broadcast(mustMarshal(map[string]any{
-			"type":    "player_list",
-			"players": currentRoom.PlayerNames(),
-		}))
-
-		if remaining == 0 {
-			currentRoom.StopTimer()
-			s.Rooms.RemoveRoom(currentRoom.ID)
-			slog.Info("room removed (empty)", "roomId", currentRoom.ID)
-		}
-		currentRoom = nil
-		currentPlayer = nil
-	}
-
-	// Cleanup on disconnect
-	defer func() {
-		leaveCurrentRoom()
-		conn.Close()
-	}()
-
-	for {
-		var msg WSMessage
-		if err := conn.ReadJSON(&msg); err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-				slog.Warn("websocket read", "error", err)
-			}
-			return
-		}
-
-		switch msg.Type {
-		case "get_rooms":
-			rooms := s.Rooms.ListRooms()
-			if rooms == nil {
-				rooms = []RoomInfo{}
-			}
-			sendMsg(map[string]any{
-				"type":  "rooms",
-				"rooms": rooms,
-			})
-
-		case "get_genres":
-			sendMsg(map[string]any{
-				"type":     "genres",
-				"kanaRows": GetKanaRowNames(),
-			})
-
-		case "create_room":
-			if msg.Name == "" || msg.Settings == nil {
-				sendErr("名前とルーム設定が必要です")
-				continue
-			}
-			// Check if this name is already in a room (from another connection)
-			if existingRoomID := s.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
-				// Only allow if this is the same connection & same player name (re-creating)
-				if playerName != msg.Name || currentRoom == nil || currentRoom.ID != existingRoomID {
-					sendErr(fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
-					continue
-				}
-			}
-			// Leave current room first if in one
-			leaveCurrentRoom()
-			playerName = msg.Name
-			room, player := s.handleCreateRoom(conn, playerName, msg.Settings)
-			currentRoom = room
-			currentPlayer = player
-			s.Rooms.TrackPlayer(playerName, currentRoom.ID)
-			go writePump(conn, currentPlayer)
-
-		case "join":
-			if msg.Name == "" || msg.RoomID == "" {
-				sendErr("名前とルームIDが必要です")
-				continue
-			}
-			// Check if this name is already in a room (from another connection)
-			if existingRoomID := s.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
-				// Only allow if this is the same connection & same player name (re-joining)
-				if playerName != msg.Name || currentRoom == nil || currentRoom.ID != existingRoomID {
-					sendErr(fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
-					continue
-				}
-			}
-			// Leave current room first if in one
-			leaveCurrentRoom()
-			playerName = msg.Name
-			room, player, err := s.handleJoinRoom(conn, playerName, msg.RoomID)
-			if err != nil {
-				sendErr(err.Error())
-				continue
-			}
-			currentRoom = room
-			currentPlayer = player
-			s.Rooms.TrackPlayer(playerName, currentRoom.ID)
-			go writePump(conn, currentPlayer)
-
-		case "leave_room":
-			leaveCurrentRoom()
-
-		case "start_game":
-			if currentRoom == nil {
-				sendErr("ルームに参加していません")
-				continue
-			}
-			if currentRoom.Owner != playerName {
-				sendErr("ゲームを開始できるのはルーム作成者のみです")
-				continue
-			}
-			if msg.Settings != nil {
-				if err := currentRoom.UpdateSettings(*msg.Settings); err != nil {
-					sendErr(err.Error())
-					continue
-				}
-				// Broadcast updated settings to all players
-				currentRoom.Broadcast(mustMarshal(map[string]any{
-					"type":     "settings_updated",
-					"settings": currentRoom.Settings,
-				}))
-			}
-			s.handleStartGame(currentRoom)
-
-		case "answer":
-			if currentRoom == nil || playerName == "" {
-				sendErr("ルームに参加していません")
-				continue
-			}
-			s.handleAnswer(currentRoom, playerName, msg.Word)
-
-		case "vote":
-			if currentRoom == nil || playerName == "" {
-				sendErr("ルームに参加していません")
-				continue
-			}
-			if msg.Accept == nil {
-				sendErr("投票内容が必要です")
-				continue
-			}
-			s.handleVote(currentRoom, playerName, *msg.Accept)
-
-		case "challenge":
-			if currentRoom == nil || playerName == "" {
-				sendErr("ルームに参加していません")
-				continue
-			}
-			s.handleChallenge(currentRoom, playerName)
-
-		case "rebuttal":
-			if currentRoom == nil || playerName == "" {
-				sendErr("ルームに参加していません")
-				continue
-			}
-			if msg.Rebuttal == "" {
-				sendErr("反論メッセージが必要です")
-				continue
-			}
-			s.handleRebuttal(currentRoom, playerName, msg.Rebuttal)
-
-		case "withdraw_challenge":
-			if currentRoom == nil || playerName == "" {
-				sendErr("ルームに参加していません")
-				continue
-			}
-			s.handleWithdrawChallenge(currentRoom, playerName)
-
-		case "ping":
-			sendMsg(map[string]any{
-				"type": "pong",
-			})
-
-		default:
-			sendErr(fmt.Sprintf("unknown message type: %s", msg.Type))
-		}
-	}
+	wsc.readLoop()
 }
 
 // writePump pumps messages from the player's Send channel to the WebSocket.
