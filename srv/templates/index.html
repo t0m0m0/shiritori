@@ -135,7 +135,6 @@ input,select{font-family:inherit;font-size:1rem}
 .room-meta span{margin-right:.75rem}
 .room-actions{display:flex;gap:.5rem;flex-wrap:wrap}
 .no-rooms{text-align:center;color:var(--text2);padding:2rem;font-size:.95rem}
-.room-create-simple .btn + .btn{margin-top:.5rem}
 .invite-room-title{font-weight:700;font-size:1.05rem;margin-bottom:.4rem;color:var(--primary)}
 .invite-room-rules{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}
 .invite-room-host{font-size:.9rem;color:var(--text2);margin-bottom:.5rem}
@@ -480,21 +479,11 @@ input,select{font-family:inherit;font-size:1rem}
 
   <div id="lobbyCreateCard" class="card slide-up">
     <h2>ルームを作る</h2>
-    <div id="roomCreateSimple" class="room-create-simple">
+    <div id="roomCreateSettings">
       <div class="form-group">
         <label>ルーム名</label>
         <input type="text" id="roomNameInput" placeholder="楽しいしりとり" maxlength="20">
       </div>
-      <div class="form-group">
-        <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
-          <input type="checkbox" id="privateRoomSimple" style="display:inline;width:auto;margin-right:.3rem">
-          🔒 プライベートルーム（ロビーに表示しない）
-        </label>
-      </div>
-      <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
-      <button class="btn btn-outline btn-block" onclick="toggleAdvanced(true)">詳細設定</button>
-    </div>
-    <div id="roomCreateAdvanced" class="hidden">
       <div class="form-row">
         <div class="form-group">
           <label>最少文字数</label>
@@ -550,14 +539,11 @@ input,select{font-family:inherit;font-size:1rem}
       </div>
       <div class="form-group">
         <label class="kana-row-chip" style="display:inline-flex;cursor:pointer">
-          <input type="checkbox" id="privateRoomAdvanced" style="display:inline;width:auto;margin-right:.3rem">
+          <input type="checkbox" id="privateRoom" style="display:inline;width:auto;margin-right:.3rem">
           🔒 プライベートルーム（ロビーに表示しない）
         </label>
       </div>
-      <div class="form-row">
-        <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
-        <button class="btn btn-outline btn-block" onclick="toggleAdvanced(false)">簡易モード</button>
-      </div>
+      <button class="btn btn-primary btn-block" onclick="createRoom()">ルームを作成</button>
     </div>
   </div>
 
@@ -864,13 +850,6 @@ function renderKanaRowCheckboxes() {
   });
 }
 
-function toggleAdvanced(show) {
-  const simple = $('roomCreateSimple');
-  const advanced = $('roomCreateAdvanced');
-  if (!simple || !advanced) return;
-  simple.classList.toggle('hidden', show);
-  advanced.classList.toggle('hidden', !show);
-}
 
 function getSelectedKanaRows() {
   const checkboxes = document.querySelectorAll('#kanaRowCheckboxes input[type=checkbox]:checked');
@@ -924,8 +903,7 @@ function createRoom() {
   myName = name;
   const allowedRows = getSelectedKanaRows();
   const noDakuten = $('noDakuten').checked;
-  const isAdvanced = !$('roomCreateAdvanced').classList.contains('hidden');
-  const isPrivate = isAdvanced ? $('privateRoomAdvanced').checked : $('privateRoomSimple').checked;
+  const isPrivate = $('privateRoom').checked;
   send({
     type: 'create_room', name,
     settings: {
