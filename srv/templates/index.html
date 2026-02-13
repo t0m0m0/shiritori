@@ -548,8 +548,9 @@ input,select{font-family:inherit;font-size:1rem}
 
   <div id="inviteCard" class="card invite-card slide-up hidden" style="animation-delay:.05s">
     <div class="invite-info">
-      招待リンクからルームに参加できます
-      <div class="invite-id" id="inviteRoomId"></div>
+      <div class="invite-room-title" id="inviteCardTitle">招待ルーム</div>
+      <div class="invite-room-rules" id="inviteCardRules"></div>
+      <div class="invite-room-host" id="inviteCardHost"></div>
     </div>
     <div class="invite-actions">
       <button class="btn btn-primary" onclick="joinInviteRoom()">参加する</button>
@@ -743,7 +744,9 @@ async function copyText(text) {
 function setInviteRoom(roomId) {
   if (!roomId) return;
   inviteRoomId = roomId;
-  $('inviteRoomId').textContent = `ルームID: ${roomId}`;
+  $('inviteCardTitle').textContent = '招待ルーム';
+  $('inviteCardRules').innerHTML = '';
+  $('inviteCardHost').textContent = '';
   $('inviteCard').classList.remove('hidden');
   document.body.classList.add('invite-lobby');
 }
@@ -754,6 +757,9 @@ function clearInviteRoomInfo() {
   $('inviteRoomRules').innerHTML = '';
   $('inviteRoomHost').textContent = '';
   $('inviteRoomPlayers').innerHTML = '';
+  $('inviteCardTitle').textContent = '招待ルーム';
+  $('inviteCardRules').innerHTML = '';
+  $('inviteCardHost').textContent = '';
 }
 
 function clearInvite() {
@@ -953,6 +959,9 @@ function renderInviteRoomInfo(room) {
   $('inviteRoomTitle').textContent = room.name || 'ルーム';
   $('inviteRoomRules').innerHTML = buildRoomBadges(room);
   $('inviteRoomHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
+  $('inviteCardTitle').textContent = room.name || '招待ルーム';
+  $('inviteCardRules').innerHTML = buildRoomBadges(room);
+  $('inviteCardHost').textContent = room.owner ? `ホスト: ${room.owner}` : '';
   const players = room.players || [];
   const list = $('inviteRoomPlayers');
   list.innerHTML = '';
