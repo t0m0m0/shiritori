@@ -85,6 +85,7 @@ func (s *Server) HandleRoomInfo(w http.ResponseWriter, r *http.Request) {
 
 // Serve starts the HTTP server with the configured routes.
 func (s *Server) Serve(addr string) error {
+	s.Rooms.StartCleanup(roomCleanupInterval, roomMaxEmptyAge)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.HandleIndex)
 	mux.HandleFunc("GET /ws", s.HandleWS)

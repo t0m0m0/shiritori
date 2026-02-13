@@ -129,8 +129,11 @@ func (wsc *WSConn) leaveCurrentRoom() {
 
 	if remaining == 0 {
 		wsc.currentRoom.StopTimer()
-		wsc.server.Rooms.RemoveRoom(wsc.currentRoom.ID)
-		slog.Info("room removed (empty)", "roomId", wsc.currentRoom.ID)
+		now := time.Now()
+		wsc.currentRoom.mu.Lock()
+		wsc.currentRoom.EmptySince = &now
+		wsc.currentRoom.mu.Unlock()
+		slog.Info("room now empty, scheduled for cleanup", "roomId", wsc.currentRoom.ID)
 	}
 	wsc.currentRoom = nil
 	wsc.currentPlayer = nil
@@ -475,6 +478,11 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Roo
 	if _, exists := room.Players[name]; exists {
 		room.mu.Unlock()
 		return nil, nil, fmt.Errorf("名前「%s」はすでに使われています", name)
+	}
+	maxP := room.MaxPlayersLimit()
+	if len(room.Players) >= maxP {
+		room.mu.Unlock()
+		return nil, nil, fmt.Errorf("ルームが満員です（最大%d人）", maxP)
 	}
 	room.mu.Unlock()
 
