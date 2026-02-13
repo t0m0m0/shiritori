@@ -2258,6 +2258,8 @@
       let hasVoted = false;
       let isVoteActive = false;
       let lastWordPlayer = "";
+      let wasInRoom = ""; // roomId to rejoin after reconnect
+      let wasRoomOwner = false; // was this player the room owner?
       let kanaRowNames = [];
       let currentLives = {};
       let maxLives = 3;
@@ -2275,13 +2277,25 @@
           console.log("WS connected");
           refreshRooms();
           send({ type: "get_genres" });
-          document.body.classList.toggle(
-            "invite-lobby",
-            !!inviteRoomId && !currentRoomId,
-          );
+          // Attempt to rejoin room after reconnect
+          if (wasInRoom && myName) {
+            console.log("Attempting to rejoin room", wasInRoom);
+            send({ type: "join", name: myName, roomId: wasInRoom });
+            wasInRoom = "";
+          } else {
+            document.body.classList.toggle(
+              "invite-lobby",
+              !!inviteRoomId && !currentRoomId,
+            );
+          }
         };
         ws.onclose = () => {
           console.log("WS closed");
+          // Remember current room so we can rejoin
+          if (currentRoomId) {
+            wasInRoom = currentRoomId;
+            wasRoomOwner = (roomOwner === myName);
+          }
           setTimeout(connect, 2000);
         };
         ws.onerror = (e) => console.error("WS error", e);

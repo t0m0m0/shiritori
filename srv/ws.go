@@ -11,6 +11,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = 30 * time.Second
+)
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -62,6 +71,12 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 		slog.Error("websocket upgrade", "error", err)
 		return
 	}
+
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 
 	var playerName string
 	var currentRoom *Room
@@ -278,6 +293,11 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			}
 			s.handleWithdrawChallenge(currentRoom, playerName)
 
+		case "ping":
+			sendMsg(map[string]any{
+				"type": "pong",
+			})
+
 		default:
 			sendErr(fmt.Sprintf("unknown message type: %s", msg.Type))
 		}
@@ -289,9 +309,27 @@ func writePump(conn *websocket.Conn, p *Player) {
 	if p == nil {
 		return
 	}
-	for msg := range p.Send {
-		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			return
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		conn.Close()
+	}()
+	for {
+		select {
+		case msg, ok := <-p.Send:
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				return
+			}
+		case <-ticker.C:
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
 }
