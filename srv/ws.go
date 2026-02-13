@@ -378,9 +378,7 @@ func (s *Server) handleAnswer(room *Room, playerName, word string) {
 		s.broadcastWordAccepted(room, word, playerName)
 
 	case ValidatePenalty:
-		// Word is accepted but player loses a life
-		s.broadcastWordAccepted(room, word, playerName)
-
+		// Word NOT accepted, but player loses a life
 		room.mu.Lock()
 		var livesLeft int
 		var eliminated, gameOver bool

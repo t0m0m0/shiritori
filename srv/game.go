@@ -381,18 +381,13 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 	}
 
 	// Check first char matches last char of current word (skip for first word)
-	// Also skip if previous word ended with ん (penalty accepted, next player can start freely)
 	if r.CurrentWord != "" {
 		prevHiragana := toHiragana(r.CurrentWord)
 		lastChar := getLastChar(prevHiragana)
-		prevRunes := []rune(prevHiragana)
-		endsWithN := len(prevRunes) > 0 && prevRunes[len(prevRunes)-1] == 'ん'
+		firstChar := getFirstChar(hiragana)
 
-		if !endsWithN {
-			firstChar := getFirstChar(hiragana)
-			if lastChar != firstChar {
-				return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
-			}
+		if lastChar != firstChar {
+			return ValidateRejected, fmt.Sprintf("「%c」から始まる言葉を入力してください", lastChar)
 		}
 	}
 
@@ -401,34 +396,28 @@ func (r *Room) ValidateAndSubmitWord(word, playerName string) (ValidateResult, s
 		return ValidateRejected, "この言葉はすでに使われています"
 	}
 
-	// --- Penalty checks: word IS accepted but player loses a life ---
+	// --- Penalty checks: word NOT accepted, but player loses a life ---
 
 	// Check ends with ん
 	runes := []rune(hiragana)
 	if runes[len(runes)-1] == 'ん' {
-		r.applyWordLocked(word, hiragana, playerName)
-		penaltyMsg := "「ん」で終わる言葉を使いました"
 		r.applyPenaltyLocked(playerName)
-		return ValidatePenalty, penaltyMsg
+		return ValidatePenalty, "「ん」で終わる言葉を使いました"
 	}
 
 	// Check no dakuten/handakuten
 	if r.Settings.NoDakuten {
 		if badChar := ValidateNoDakuten(hiragana); badChar != 0 {
-			r.applyWordLocked(word, hiragana, playerName)
-			penaltyMsg := fmt.Sprintf("「%c」は濁音・半濁音の文字です（濁音・半濁音禁止ルール）", badChar)
 			r.applyPenaltyLocked(playerName)
-			return ValidatePenalty, penaltyMsg
+			return ValidatePenalty, fmt.Sprintf("「%c」は濁音・半濁音の文字です（濁音・半濁音禁止ルール）", badChar)
 		}
 	}
 
 	// Check allowed rows
 	if len(r.Settings.AllowedRows) > 0 {
 		if badChar, badRow := ValidateAllowedRows(hiragana, r.Settings.AllowedRows); badChar != 0 {
-			r.applyWordLocked(word, hiragana, playerName)
-			penaltyMsg := fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
 			r.applyPenaltyLocked(playerName)
-			return ValidatePenalty, penaltyMsg
+			return ValidatePenalty, fmt.Sprintf("「%c」は%sの文字です（使用可能な行: %s）", badChar, badRow, formatAllowedRows(r.Settings.AllowedRows))
 		}
 	}
 

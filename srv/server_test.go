@@ -117,17 +117,10 @@ func TestWordValidation(t *testing.T) {
 	}
 	_ = msg
 
-	// After ん-ending word, any starting character is allowed
+	// Penalty does not change current word, so still need to start with ご
 	result, _ = room.ValidateAndSubmitWord("さくら", "test")
-	if result != ValidateOK {
-		t.Error("expected さくら to be valid (any start allowed after ん-ending word)")
-	}
-
-	// Wrong starting character (non-ん case)
-	room.CurrentWord = "りんご" // last char is ご
-	result, _ = room.ValidateAndSubmitWord("あひる", "test")
 	if result == ValidateOK {
-		t.Error("expected あひる to be rejected (doesn't start with ご)")
+		t.Error("expected さくら to be rejected (doesn't start with ご)")
 	}
 
 	// Already used
