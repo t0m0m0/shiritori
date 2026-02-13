@@ -592,8 +592,6 @@
 }
 
 [data-theme="typo"] #lobby .player-name-section input:focus {
-  border-style: solid;
-  border-color: inherit;
   box-shadow: none;
   outline: none;
 }

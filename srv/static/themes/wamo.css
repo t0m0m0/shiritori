@@ -781,8 +781,6 @@
 }
 
 [data-theme="wamo"] #lobby .player-name-section input:focus {
-  border-style: solid;
-  border-color: inherit;
   outline: none;
   box-shadow: none;
 }
