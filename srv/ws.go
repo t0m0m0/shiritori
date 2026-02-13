@@ -65,6 +65,43 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	var playerName string
 	var currentRoom *Room
+	var currentPlayer *Player
+
+	// sendDirect writes a message directly to the WebSocket connection.
+	// Only safe to use BEFORE writePump is started (i.e., before joining a room).
+	sendDirect := func(v any) {
+		conn.WriteJSON(v)
+	}
+
+	// sendToPlayer sends a message via the player's Send channel.
+	// Safe to use after writePump is started.
+	sendToPlayer := func(v any) {
+		if currentPlayer == nil {
+			return
+		}
+		data := mustMarshal(v)
+		select {
+		case currentPlayer.Send <- data:
+		default:
+			// drop if channel full
+		}
+	}
+
+	// sendMsg sends a message using the appropriate method based on current state.
+	sendMsg := func(v any) {
+		if currentPlayer != nil {
+			sendToPlayer(v)
+		} else {
+			sendDirect(v)
+		}
+	}
+
+	sendErr := func(message string) {
+		sendMsg(map[string]any{
+			"type":    "error",
+			"message": message,
+		})
+	}
 
 	// leaveCurrentRoom removes the player from their current room.
 	leaveCurrentRoom := func() {
@@ -90,6 +127,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			slog.Info("room removed (empty)", "roomId", currentRoom.ID)
 		}
 		currentRoom = nil
+		currentPlayer = nil
 	}
 
 	// Cleanup on disconnect
@@ -109,21 +147,32 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 		switch msg.Type {
 		case "get_rooms":
-			s.handleGetRooms(conn)
+			rooms := s.Rooms.ListRooms()
+			if rooms == nil {
+				rooms = []RoomInfo{}
+			}
+			sendMsg(map[string]any{
+				"type":  "rooms",
+				"rooms": rooms,
+			})
 
 		case "get_genres":
-			s.handleGetGenres(conn)
+			sendMsg(map[string]any{
+				"type":     "genres",
+				"genres":   getGenreList(),
+				"kanaRows": GetKanaRowNames(),
+			})
 
 		case "create_room":
 			if msg.Name == "" || msg.Settings == nil {
-				sendError(conn, "名前とルーム設定が必要です")
+				sendErr("名前とルーム設定が必要です")
 				continue
 			}
 			// Check if this name is already in a room (from another connection)
 			if existingRoomID := s.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
 				// Only allow if this is the same connection & same player name (re-creating)
 				if playerName != msg.Name || currentRoom == nil || currentRoom.ID != existingRoomID {
-					sendError(conn, fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
+					sendErr(fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
 					continue
 				}
 			}
@@ -132,92 +181,79 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			playerName = msg.Name
 			room, player := s.handleCreateRoom(conn, playerName, msg.Settings)
 			currentRoom = room
+			currentPlayer = player
 			s.Rooms.TrackPlayer(playerName, currentRoom.ID)
-			_ = player
-			go writePump(conn, s.Rooms.GetRoom(currentRoom.ID).Players[playerName])
+			go writePump(conn, currentPlayer)
 
 		case "join":
 			if msg.Name == "" || msg.RoomID == "" {
-				sendError(conn, "名前とルームIDが必要です")
+				sendErr("名前とルームIDが必要です")
 				continue
 			}
 			// Check if this name is already in a room (from another connection)
 			if existingRoomID := s.Rooms.PlayerRoomID(msg.Name); existingRoomID != "" {
 				// Only allow if this is the same connection & same player name (re-joining)
 				if playerName != msg.Name || currentRoom == nil || currentRoom.ID != existingRoomID {
-					sendError(conn, fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
+					sendErr(fmt.Sprintf("「%s」は既に別のルームに参加しています", msg.Name))
 					continue
 				}
 			}
 			// Leave current room first if in one
 			leaveCurrentRoom()
 			playerName = msg.Name
-			room, err := s.handleJoinRoom(conn, playerName, msg.RoomID)
+			room, player, err := s.handleJoinRoom(conn, playerName, msg.RoomID)
 			if err != nil {
-				sendError(conn, err.Error())
+				sendErr(err.Error())
 				continue
 			}
 			currentRoom = room
+			currentPlayer = player
 			s.Rooms.TrackPlayer(playerName, currentRoom.ID)
-			go writePump(conn, currentRoom.Players[playerName])
+			go writePump(conn, currentPlayer)
 
 		case "leave_room":
 			leaveCurrentRoom()
 
 		case "start_game":
 			if currentRoom == nil {
-				sendError(conn, "ルームに参加していません")
+				sendErr("ルームに参加していません")
 				continue
 			}
 			if currentRoom.Owner != playerName {
-				sendError(conn, "ゲームを開始できるのはルーム作成者のみです")
+				sendErr("ゲームを開始できるのはルーム作成者のみです")
 				continue
 			}
 			s.handleStartGame(currentRoom)
 
 		case "answer":
 			if currentRoom == nil || playerName == "" {
-				sendError(conn, "ルームに参加していません")
+				sendErr("ルームに参加していません")
 				continue
 			}
 			s.handleAnswer(currentRoom, playerName, msg.Word)
 
 		case "vote":
 			if currentRoom == nil || playerName == "" {
-				sendError(conn, "ルームに参加していません")
+				sendErr("ルームに参加していません")
 				continue
 			}
 			if msg.Accept == nil {
-				sendError(conn, "投票内容が必要です")
+				sendErr("投票内容が必要です")
 				continue
 			}
 			s.handleVote(currentRoom, playerName, *msg.Accept)
 
 		case "challenge":
 			if currentRoom == nil || playerName == "" {
-				sendError(conn, "ルームに参加していません")
+				sendErr("ルームに参加していません")
 				continue
 			}
 			s.handleChallenge(currentRoom, playerName)
 
 		default:
-			sendError(conn, fmt.Sprintf("unknown message type: %s", msg.Type))
+			sendErr(fmt.Sprintf("unknown message type: %s", msg.Type))
 		}
 	}
-}
-
-func sendError(conn *websocket.Conn, message string) {
-	if conn == nil {
-		return
-	}
-	conn.WriteJSON(map[string]any{
-		"type":    "error",
-		"message": message,
-	})
-}
-
-func sendJSON(conn *websocket.Conn, v any) {
-	conn.WriteJSON(v)
 }
 
 // writePump pumps messages from the player's Send channel to the WebSocket.
@@ -230,25 +266,6 @@ func writePump(conn *websocket.Conn, p *Player) {
 			return
 		}
 	}
-}
-
-func (s *Server) handleGetRooms(conn *websocket.Conn) {
-	rooms := s.Rooms.ListRooms()
-	if rooms == nil {
-		rooms = []RoomInfo{}
-	}
-	sendJSON(conn, map[string]any{
-		"type":  "rooms",
-		"rooms": rooms,
-	})
-}
-
-func (s *Server) handleGetGenres(conn *websocket.Conn) {
-	sendJSON(conn, map[string]any{
-		"type":     "genres",
-		"genres":   getGenreList(),
-		"kanaRows": GetKanaRowNames(),
-	})
 }
 
 func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *RoomSettings) (*Room, *Player) {
@@ -278,16 +295,16 @@ func (s *Server) handleCreateRoom(conn *websocket.Conn, name string, settings *R
 	return room, player
 }
 
-func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Room, error) {
+func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Room, *Player, error) {
 	room := s.Rooms.GetRoom(roomID)
 	if room == nil {
-		return nil, fmt.Errorf("ルームが見つかりません: %s", roomID)
+		return nil, nil, fmt.Errorf("ルームが見つかりません: %s", roomID)
 	}
 
 	room.mu.Lock()
 	if _, exists := room.Players[name]; exists {
 		room.mu.Unlock()
-		return nil, fmt.Errorf("名前「%s」はすでに使われています", name)
+		return nil, nil, fmt.Errorf("名前「%s」はすでに使われています", name)
 	}
 	room.mu.Unlock()
 
@@ -316,7 +333,7 @@ func (s *Server) handleJoinRoom(conn *websocket.Conn, name, roomID string) (*Roo
 		"players": room.PlayerNames(),
 	}))
 
-	return room, nil
+	return room, player, nil
 }
 
 func (s *Server) handleStartGame(room *Room) {
@@ -484,7 +501,18 @@ func (s *Server) handleVote(room *Room, playerName string, accept bool) {
 func (s *Server) handleChallenge(room *Room, playerName string) {
 	info, err := room.StartChallengeVote(playerName)
 	if err != nil {
-		sendError(room.Players[playerName].Conn, err.Error())
+		// Send error via player's channel
+		room.mu.Lock()
+		if p, ok := room.Players[playerName]; ok {
+			select {
+			case p.Send <- mustMarshal(map[string]any{
+				"type":    "error",
+				"message": err.Error(),
+			}):
+			default:
+			}
+		}
+		room.mu.Unlock()
 		return
 	}
 
