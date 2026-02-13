@@ -8,7 +8,6 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -110,22 +109,7 @@ func (s *Server) HandleSaveResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := generateResultID()
-	scoresJSON, _ := json.Marshal(req.Scores)
-	historyJSON, _ := json.Marshal(req.History)
-	livesJSON, _ := json.Marshal(req.Lives)
-	playerCount := len(req.Scores)
-	if playerCount == 0 {
-		playerCount = 1
-	}
-
-	_, err := s.DB.Exec(
-		`INSERT INTO game_results (id, room_name, genre, winner, reason, scores_json, history_json, lives_json, player_count, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, req.RoomName, req.Genre, req.Winner, req.Reason,
-		string(scoresJSON), string(historyJSON), string(livesJSON),
-		playerCount, time.Now().UTC(),
-	)
+	id, err := s.saveGameResult(req.RoomName, req.Genre, req.Winner, req.Reason, req.Scores, req.History, req.Lives)
 	if err != nil {
 		slog.Error("save result", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -209,7 +193,7 @@ func (s *Server) HandleViewResultPage(w http.ResponseWriter, r *http.Request) {
 
 	resultJSON, _ := json.Marshal(result)
 
-	tmpl, err := template.ParseFiles(filepath.Join(s.TemplatesDir, "result.html"))
+	tmpl, err := template.ParseFS(templatesFS, "templates/result.html")
 	if err != nil {
 		slog.Error("parse result template", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
