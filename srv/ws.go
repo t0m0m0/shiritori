@@ -71,6 +71,7 @@ type WSConn struct {
 	playerName    string
 	currentRoom   *Room
 	currentPlayer *Player
+	rateLimiter   *ConnectionRateLimiter
 }
 
 // sendDirect writes a message directly to the WebSocket connection.
@@ -304,6 +305,18 @@ func (wsc *WSConn) readLoop() {
 			return
 		}
 
+		// Rate limit check
+		allowed, shouldDisconnect := wsc.rateLimiter.Allow(msg.Type)
+		if !allowed {
+			if shouldDisconnect {
+				slog.Warn("rate limit exceeded, disconnecting", "player", wsc.playerName, "type", msg.Type)
+				wsc.sendErr("レート制限を超過しました。接続を切断します。")
+				return
+			}
+			wsc.sendErr("操作が速すぎます。少し待ってからやり直してください。")
+			continue
+		}
+
 		switch msg.Type {
 		case "get_rooms":
 			wsc.handleGetRooms(msg)
@@ -350,8 +363,9 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 	})
 
 	wsc := &WSConn{
-		server: s,
-		conn:   conn,
+		server:      s,
+		conn:        conn,
+		rateLimiter: NewConnectionRateLimiter(),
 	}
 	wsc.readLoop()
 }
